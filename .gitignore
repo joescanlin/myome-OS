@@ -1,0 +1,134 @@
+# ============================================
+# Internal documentation (not for public repo)
+# ============================================
+docs/build-guide/
+generate_section_pages.py
+index.html
+paper.html
+myome ai.html
+myome-logo.svg
+myome-preview-light.png
+myome-preview-light.svg
+myome-preview.svg
+posts/
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# ============================================
+# Node.js
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.pnpm-store/
+
+# ============================================
+# IDE and Editors
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# Environment and Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
+secrets/
+*.pem
+*.key
+credentials.json
+
+# ============================================
+# Database
+# ============================================
+*.db
+*.sqlite3
+*.sqlite
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+
+# ============================================
+# OS generated files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================
+# Build outputs
+# ============================================
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# ============================================
+# Docker
+# ============================================
+docker-compose.override.yml
+
+# ============================================
+# Test databases
+# ============================================
+test.db
+*.test.db
+
+# ============================================
+# Temporary files
+# ============================================
+*.tmp
+*.temp
+.cache/
