@@ -26,11 +26,11 @@ class HeartRateCreate(BaseModel):
 
 class HeartRateRead(BaseModel):
     """Heart rate response"""
-    id: str
     timestamp: datetime
     heart_rate_bpm: int
     activity_type: Optional[str] = None
     confidence: Optional[float] = None
+    device_id: Optional[str] = None
     
     model_config = {"from_attributes": True}
 
@@ -46,11 +46,11 @@ class GlucoseCreate(BaseModel):
 
 class GlucoseRead(BaseModel):
     """Glucose response"""
-    id: str
     timestamp: datetime
     glucose_mg_dl: float
     trend: Optional[str] = None
     meal_context: Optional[str] = None
+    device_id: Optional[str] = None
     
     model_config = {"from_attributes": True}
 

@@ -4,8 +4,8 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from myome.core.database import Base
@@ -61,11 +61,20 @@ class Device(Base, UUIDMixin, TimestampMixin):
     
     # Device identification
     device_type: Mapped[str] = mapped_column(
-        Enum(DeviceType),
+        ENUM(
+            'smartwatch', 'fitness_tracker', 'cgm', 'smart_ring', 'smart_scale',
+            'blood_pressure', 'pulse_oximeter', 'thermometer', 'sleep_tracker',
+            'air_quality', 'other',
+            name="devicetype", create_type=False
+        ),
         nullable=False,
     )
     vendor: Mapped[str] = mapped_column(
-        Enum(DeviceVendor),
+        ENUM(
+            'apple', 'garmin', 'fitbit', 'oura', 'whoop', 'withings',
+            'dexcom', 'abbott', 'levels', 'polar', 'awair', 'eve', 'generic',
+            name="devicevendor", create_type=False
+        ),
         nullable=False,
     )
     model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,15 +27,15 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    # Database
-    database_url: PostgresDsn = Field(
+    # Database (supports PostgreSQL or SQLite for testing)
+    database_url: str = Field(
         default="postgresql+asyncpg://myome:myome@localhost:5432/myome"
     )
     database_pool_size: int = 10
     database_max_overflow: int = 20
 
     # Redis (for caching and Celery)
-    redis_url: RedisDsn = Field(default="redis://localhost:6379/0")
+    redis_url: str = Field(default="redis://localhost:6379/0")
 
     # Security
     secret_key: str = Field(

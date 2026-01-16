@@ -3,7 +3,8 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, Date, Enum, String, Text
+from sqlalchemy import Boolean, Date, String, Text
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,14 +32,14 @@ class User(Base, UUIDMixin, TimestampMixin):
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     date_of_birth: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     biological_sex: Mapped[Optional[str]] = mapped_column(
-        Enum("male", "female", "other", name="biological_sex_enum"),
+        ENUM("male", "female", "other", name="biological_sex_enum", create_type=False),
         nullable=True,
     )
     
     # Settings
     timezone: Mapped[str] = mapped_column(String(50), default="UTC")
     units_system: Mapped[str] = mapped_column(
-        Enum("metric", "imperial", name="units_system_enum"),
+        ENUM("metric", "imperial", name="units_system_enum", create_type=False),
         default="metric",
     )
     

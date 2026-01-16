@@ -23,18 +23,34 @@ def upgrade() -> None:
     op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
     op.execute('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;')
     
-    # Create enum types
-    op.execute("CREATE TYPE biological_sex_enum AS ENUM ('male', 'female', 'other');")
-    op.execute("CREATE TYPE units_system_enum AS ENUM ('metric', 'imperial');")
-    op.execute("""CREATE TYPE devicetype AS ENUM (
-        'smartwatch', 'fitness_tracker', 'cgm', 'smart_ring', 'smart_scale',
-        'blood_pressure', 'pulse_oximeter', 'thermometer', 'sleep_tracker',
-        'air_quality', 'other'
-    );""")
-    op.execute("""CREATE TYPE devicevendor AS ENUM (
-        'apple', 'garmin', 'fitbit', 'oura', 'whoop', 'withings',
-        'dexcom', 'abbott', 'levels', 'polar', 'awair', 'eve', 'generic'
-    );""")
+    # Create enum types (using DO block to check if they exist first)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE biological_sex_enum AS ENUM ('male', 'female', 'other');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE units_system_enum AS ENUM ('metric', 'imperial');
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE devicetype AS ENUM (
+                'smartwatch', 'fitness_tracker', 'cgm', 'smart_ring', 'smart_scale',
+                'blood_pressure', 'pulse_oximeter', 'thermometer', 'sleep_tracker',
+                'air_quality', 'other'
+            );
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE devicevendor AS ENUM (
+                'apple', 'garmin', 'fitbit', 'oura', 'whoop', 'withings',
+                'dexcom', 'abbott', 'levels', 'polar', 'awair', 'eve', 'generic'
+            );
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    """)
     
     # Users table
     op.create_table(
@@ -47,9 +63,9 @@ def upgrade() -> None:
         sa.Column('first_name', sa.String(100), nullable=True),
         sa.Column('last_name', sa.String(100), nullable=True),
         sa.Column('date_of_birth', sa.Date(), nullable=True),
-        sa.Column('biological_sex', sa.Enum('male', 'female', 'other', name='biological_sex_enum', create_type=False), nullable=True),
+        sa.Column('biological_sex', postgresql.ENUM('male', 'female', 'other', name='biological_sex_enum', create_type=False), nullable=True),
         sa.Column('timezone', sa.String(50), nullable=False, server_default='UTC'),
-        sa.Column('units_system', sa.Enum('metric', 'imperial', name='units_system_enum', create_type=False), nullable=False, server_default='metric'),
+        sa.Column('units_system', postgresql.ENUM('metric', 'imperial', name='units_system_enum', create_type=False), nullable=False, server_default='metric'),
         sa.Column('privacy_settings', postgresql.JSONB(), nullable=False, server_default='{}'),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
@@ -90,8 +106,8 @@ def upgrade() -> None:
         'devices',
         sa.Column('id', postgresql.UUID(as_uuid=False), nullable=False, server_default=sa.text('uuid_generate_v4()')),
         sa.Column('user_id', postgresql.UUID(as_uuid=False), nullable=False),
-        sa.Column('device_type', sa.Enum('smartwatch', 'fitness_tracker', 'cgm', 'smart_ring', 'smart_scale', 'blood_pressure', 'pulse_oximeter', 'thermometer', 'sleep_tracker', 'air_quality', 'other', name='devicetype', create_type=False), nullable=False),
-        sa.Column('vendor', sa.Enum('apple', 'garmin', 'fitbit', 'oura', 'whoop', 'withings', 'dexcom', 'abbott', 'levels', 'polar', 'awair', 'eve', 'generic', name='devicevendor', create_type=False), nullable=False),
+        sa.Column('device_type', postgresql.ENUM('smartwatch', 'fitness_tracker', 'cgm', 'smart_ring', 'smart_scale', 'blood_pressure', 'pulse_oximeter', 'thermometer', 'sleep_tracker', 'air_quality', 'other', name='devicetype', create_type=False), nullable=False),
+        sa.Column('vendor', postgresql.ENUM('apple', 'garmin', 'fitbit', 'oura', 'whoop', 'withings', 'dexcom', 'abbott', 'levels', 'polar', 'awair', 'eve', 'generic', name='devicevendor', create_type=False), nullable=False),
         sa.Column('model', sa.String(100), nullable=True),
         sa.Column('serial_number', sa.String(100), nullable=True),
         sa.Column('firmware_version', sa.String(50), nullable=True),
