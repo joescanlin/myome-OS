@@ -68,6 +68,23 @@ services:
       - ./backend:/app
     command: celery -A myome.core.celery_app worker --loglevel=info
 
+  beat:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    container_name: myome-beat
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://myome:myome@db:5432/myome
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: celery -A myome.core.celery_app beat --loglevel=info
+
   frontend:
     build:
       context: ./frontend

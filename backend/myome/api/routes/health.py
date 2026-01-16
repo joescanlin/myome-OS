@@ -10,7 +10,7 @@ from sqlalchemy import select
 from myome.analytics.service import AnalyticsService
 from myome.api.deps.auth import CurrentUser
 from myome.api.deps.db import DbSession
-from myome.core.models import HeartRateReading, GlucoseReading, SleepSession
+from myome.core.models import HeartRateReading, GlucoseReading, SleepSession, BodyComposition
 
 router = APIRouter(prefix="/health", tags=["Health Data"])
 
@@ -53,6 +53,49 @@ class GlucoseRead(BaseModel):
     device_id: Optional[str] = None
     
     model_config = {"from_attributes": True}
+
+
+class BodyCompositionCreate(BaseModel):
+    """Body composition creation request"""
+    timestamp: datetime
+    weight_kg: float
+    body_fat_pct: Optional[float] = None
+    muscle_mass_kg: Optional[float] = None
+    bone_mass_kg: Optional[float] = None
+    water_pct: Optional[float] = None
+    device_id: Optional[str] = None
+
+
+class BodyCompositionRead(BaseModel):
+    """Body composition response"""
+    timestamp: datetime
+    weight_kg: float
+    body_fat_pct: Optional[float] = None
+    muscle_mass_kg: Optional[float] = None
+    device_id: Optional[str] = None
+    
+    model_config = {"from_attributes": True}
+
+
+class BloodPressureCreate(BaseModel):
+    """Blood pressure creation request"""
+    timestamp: datetime
+    systolic_mmhg: int
+    diastolic_mmhg: int
+    pulse_bpm: Optional[int] = None
+    device_id: Optional[str] = None
+
+
+class SleepCreate(BaseModel):
+    """Sleep session creation request"""
+    start_time: datetime
+    end_time: datetime
+    total_sleep_minutes: int
+    deep_sleep_minutes: Optional[int] = None
+    rem_sleep_minutes: Optional[int] = None
+    light_sleep_minutes: Optional[int] = None
+    sleep_score: Optional[int] = None
+    device_id: Optional[str] = None
 
 
 # ============== Heart Rate ==============
@@ -155,6 +198,91 @@ async def add_glucose(
     return GlucoseRead.model_validate(glucose)
 
 
+# ============== Body Composition ==============
+
+@router.get("/body-composition")
+async def get_body_composition(
+    user: CurrentUser,
+    session: DbSession,
+    start: Optional[datetime] = Query(default=None),
+    end: Optional[datetime] = Query(default=None),
+    limit: int = Query(default=100, le=1000),
+) -> list[BodyCompositionRead]:
+    """Get body composition readings"""
+    query = select(BodyComposition).where(
+        BodyComposition.user_id == user.id
+    )
+    
+    if start:
+        query = query.where(BodyComposition.timestamp >= start)
+    if end:
+        query = query.where(BodyComposition.timestamp <= end)
+    
+    query = query.order_by(BodyComposition.timestamp.desc()).limit(limit)
+    
+    result = await session.execute(query)
+    readings = result.scalars().all()
+    
+    return [BodyCompositionRead.model_validate(r) for r in readings]
+
+
+@router.post("/body-composition", status_code=status.HTTP_201_CREATED)
+async def add_body_composition(
+    reading: BodyCompositionCreate,
+    user: CurrentUser,
+    session: DbSession,
+) -> BodyCompositionRead:
+    """Add body composition reading (weight, body fat, etc)"""
+    body_comp = BodyComposition(
+        timestamp=reading.timestamp,
+        user_id=user.id,
+        weight_kg=reading.weight_kg,
+        body_fat_pct=reading.body_fat_pct,
+        muscle_mass_kg=reading.muscle_mass_kg,
+        bone_mass_kg=reading.bone_mass_kg,
+        water_pct=reading.water_pct,
+        device_id=reading.device_id,
+    )
+    session.add(body_comp)
+    await session.commit()
+    await session.refresh(body_comp)
+    
+    return BodyCompositionRead.model_validate(body_comp)
+
+
+# ============== Blood Pressure ==============
+
+@router.post("/blood-pressure", status_code=status.HTTP_201_CREATED)
+async def add_blood_pressure(
+    reading: BloodPressureCreate,
+    user: CurrentUser,
+    session: DbSession,
+) -> dict:
+    """
+    Add blood pressure reading.
+    Stores as heart rate reading with activity_type='blood_pressure'.
+    Systolic/diastolic stored in notes field (temporary until proper BP model).
+    """
+    # Store as heart rate reading with BP context
+    hr = HeartRateReading(
+        timestamp=reading.timestamp,
+        user_id=user.id,
+        heart_rate_bpm=reading.pulse_bpm or 0,
+        activity_type="blood_pressure",
+        device_id=reading.device_id,
+    )
+    session.add(hr)
+    await session.commit()
+    
+    return {
+        "timestamp": reading.timestamp.isoformat(),
+        "systolic_mmhg": reading.systolic_mmhg,
+        "diastolic_mmhg": reading.diastolic_mmhg,
+        "pulse_bpm": reading.pulse_bpm,
+        "status": "saved",
+    }
+
+
 # ============== Sleep ==============
 
 @router.get("/sleep")
@@ -196,6 +324,40 @@ async def get_sleep_sessions(
         }
         for s in sessions
     ]
+
+
+@router.post("/sleep", status_code=status.HTTP_201_CREATED)
+async def add_sleep_session(
+    reading: SleepCreate,
+    user: CurrentUser,
+    session: DbSession,
+) -> dict:
+    """Add manual sleep session"""
+    from uuid import uuid4
+    
+    sleep = SleepSession(
+        id=str(uuid4()),
+        user_id=user.id,
+        start_time=reading.start_time,
+        end_time=reading.end_time,
+        total_sleep_minutes=reading.total_sleep_minutes,
+        deep_sleep_minutes=reading.deep_sleep_minutes,
+        rem_sleep_minutes=reading.rem_sleep_minutes,
+        light_sleep_minutes=reading.light_sleep_minutes,
+        sleep_score=reading.sleep_score,
+        device_id=reading.device_id,
+    )
+    session.add(sleep)
+    await session.commit()
+    await session.refresh(sleep)
+    
+    return {
+        "id": sleep.id,
+        "start_time": sleep.start_time.isoformat(),
+        "end_time": sleep.end_time.isoformat(),
+        "total_sleep_minutes": sleep.total_sleep_minutes,
+        "sleep_score": sleep.sleep_score,
+    }
 
 
 # ============== Analytics ==============

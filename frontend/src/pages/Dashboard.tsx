@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/common/Card';
 import { HealthScoreGauge } from '../components/charts/HealthScoreGauge';
 import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
+import { DateRangePicker } from '../components/common/DateRangePicker';
 import { useHealthStore } from '../store/health';
 import { api } from '../services/api';
 import { subDays } from 'date-fns';
@@ -25,6 +26,12 @@ interface SleepSession {
 
 export function Dashboard() {
   const { healthScore, alerts, fetchHealthScore, fetchAlerts, acknowledgeAlert } = useHealthStore();
+  
+  // Date range state - default to last 7 days
+  const [dateRange, setDateRange] = useState({
+    start: subDays(new Date(), 7),
+    end: new Date(),
+  });
 
   // Fetch data on mount
   useEffect(() => {
@@ -32,38 +39,63 @@ export function Dashboard() {
     fetchAlerts();
   }, [fetchHealthScore, fetchAlerts]);
 
+  const handleDateRangeChange = (start: Date, end: Date) => {
+    setDateRange({ start, end });
+  };
+
+  // Calculate days for query key
+  const daysDiff = Math.round(
+    (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
   // Fetch heart rate data
   const { data: heartRateData } = useQuery({
-    queryKey: ['heartRate', '7d'],
+    queryKey: ['heartRate', dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const end = new Date().toISOString();
-      const start = subDays(new Date(), 7).toISOString();
-      return api.getHeartRate(start, end, 1000);
+      return api.getHeartRate(
+        dateRange.start.toISOString(),
+        dateRange.end.toISOString(),
+        1000
+      );
     },
   });
 
   // Fetch glucose data
   const { data: glucoseData } = useQuery({
-    queryKey: ['glucose', '7d'],
+    queryKey: ['glucose', dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const end = new Date().toISOString();
-      const start = subDays(new Date(), 7).toISOString();
-      return api.getGlucose(start, end, 1000);
+      return api.getGlucose(
+        dateRange.start.toISOString(),
+        dateRange.end.toISOString(),
+        1000
+      );
     },
   });
 
   // Fetch sleep data
   const { data: sleepData } = useQuery({
-    queryKey: ['sleep', '7d'],
+    queryKey: ['sleep', dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const end = new Date().toISOString();
-      const start = subDays(new Date(), 7).toISOString();
-      return api.getSleep(start, end, 7);
+      return api.getSleep(
+        dateRange.start.toISOString(),
+        dateRange.end.toISOString(),
+        Math.min(daysDiff, 90)
+      );
     },
   });
 
   return (
     <div className="space-y-6">
+      {/* Header with Date Range Picker */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <DateRangePicker
+          startDate={dateRange.start}
+          endDate={dateRange.end}
+          onChange={handleDateRangeChange}
+        />
+      </div>
+
       {/* Alerts */}
       {alerts.length > 0 && (
         <Card variant="elevated" className="border-l-4 border-l-red-500">
@@ -154,7 +186,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Heart Rate (7 Days)</CardTitle>
+            <CardTitle>Heart Rate ({daysDiff} Days)</CardTitle>
           </CardHeader>
           <CardContent>
             <TimeSeriesChart
@@ -170,7 +202,7 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Glucose (7 Days)</CardTitle>
+            <CardTitle>Glucose ({daysDiff} Days)</CardTitle>
           </CardHeader>
           <CardContent>
             <TimeSeriesChart

@@ -8,3 +8,4 @@ export { Activity } from './Activity';
 export { Insights } from './Insights';
 export { Devices } from './Devices';
 export { Settings } from './Settings';
+export { AddReading } from './AddReading';

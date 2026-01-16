@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from myome.api.routes import auth, users, health, devices, alerts
+from myome.api.routes import auth, users, health, devices, alerts, oauth
 from myome.core.config import settings
 from myome.core.exceptions import MyomeException
 from myome.core.logging import logger
@@ -76,6 +76,7 @@ app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(health.router, prefix=settings.api_prefix)
 app.include_router(devices.router, prefix=settings.api_prefix)
 app.include_router(alerts.router, prefix=settings.api_prefix)
+app.include_router(oauth.router, prefix=settings.api_prefix)
 
 
 @app.get("/")

@@ -58,6 +58,23 @@ class Settings(BaseSettings):
     correlation_min_samples: int = 30
     alert_significance_threshold: float = 0.01
 
+    # OAuth - Whoop
+    whoop_client_id: str = Field(default="")
+    whoop_client_secret: str = Field(default="")
+    whoop_redirect_uri: str = Field(
+        default="http://localhost:8000/api/v1/oauth/callback/whoop"
+    )
+
+    # OAuth - Withings
+    withings_client_id: str = Field(default="")
+    withings_client_secret: str = Field(default="")
+    withings_redirect_uri: str = Field(
+        default="http://localhost:8000/api/v1/oauth/callback/withings"
+    )
+
+    # Frontend URL (for OAuth redirects back to UI)
+    frontend_url: str = Field(default="http://localhost:3001")
+
 
 @lru_cache
 def get_settings() -> Settings:

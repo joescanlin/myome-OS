@@ -13,6 +13,7 @@ import { Activity } from './pages/Activity';
 import { Insights } from './pages/Insights';
 import { Devices } from './pages/Devices';
 import { Settings } from './pages/Settings';
+import { AddReading } from './pages/AddReading';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/add-reading"
+        element={
+          <ProtectedRoute>
+            <AddReading />
           </ProtectedRoute>
         }
       />

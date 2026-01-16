@@ -176,6 +176,75 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteDevice(deviceId: string) {
+    const response = await this.client.delete(`/devices/${deviceId}`);
+    return response.data;
+  }
+
+  // OAuth
+  async initiateOAuth(provider: 'whoop' | 'withings') {
+    const response = await this.client.get(`/oauth/connect/${provider}`);
+    return response.data;
+  }
+
+  async disconnectDevice(deviceId: string) {
+    const response = await this.client.delete(`/oauth/disconnect/${deviceId}`);
+    return response.data;
+  }
+
+  async refreshDeviceTokens(deviceId: string) {
+    const response = await this.client.post(`/oauth/refresh/${deviceId}`);
+    return response.data;
+  }
+
+  // Manual Data Entry
+  async addHeartRateReading(data: {
+    heart_rate_bpm: number;
+    activity_type?: string;
+    timestamp: string;
+  }) {
+    const response = await this.client.post('/health/heart-rate', data);
+    return response.data;
+  }
+
+  async addGlucoseReading(data: {
+    glucose_mg_dl: number;
+    meal_context?: string;
+    timestamp: string;
+  }) {
+    const response = await this.client.post('/health/glucose', data);
+    return response.data;
+  }
+
+  async addBodyComposition(data: {
+    weight_kg: number;
+    body_fat_pct?: number;
+    timestamp: string;
+  }) {
+    const response = await this.client.post('/health/body-composition', data);
+    return response.data;
+  }
+
+  async addBloodPressure(data: {
+    systolic_mmhg: number;
+    diastolic_mmhg: number;
+    pulse_bpm?: number;
+    timestamp: string;
+  }) {
+    const response = await this.client.post('/health/blood-pressure', data);
+    return response.data;
+  }
+
+  async addSleepSession(data: {
+    start_time: string;
+    end_time: string;
+    total_sleep_minutes: number;
+    sleep_score?: number;
+  }) {
+    const response = await this.client.post('/health/sleep', data);
+    return response.data;
+  }
+
   // Alerts
   async getAlerts(status?: string) {
     const params = status ? `?status=${status}` : '';
