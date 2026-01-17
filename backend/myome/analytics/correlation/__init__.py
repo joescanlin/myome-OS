@@ -1,7 +1,7 @@
 """Correlation analysis module"""
 
 from myome.analytics.correlation.engine import CorrelationEngine, CorrelationResult
-from myome.analytics.correlation.trends import TrendAnalyzer, TrendResult, ChangePoint
+from myome.analytics.correlation.trends import ChangePoint, TrendAnalyzer, TrendResult
 
 __all__ = [
     "CorrelationEngine",

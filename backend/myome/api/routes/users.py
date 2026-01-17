@@ -1,9 +1,7 @@
 """User management routes"""
 
-from typing import Optional
-
 from fastapi import APIRouter
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from myome.api.deps.auth import CurrentUser
 from myome.api.deps.db import DbSession
@@ -14,31 +12,34 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 class UserRead(BaseModel):
     """User response"""
+
     id: str
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     is_active: bool
-    
+
     model_config = {"from_attributes": True}
 
 
 class UserUpdate(BaseModel):
     """User update request"""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class HealthProfileUpdate(BaseModel):
     """Health profile update request"""
-    height_cm: Optional[float] = None
-    baseline_weight_kg: Optional[float] = None
-    ethnicity: Optional[list[str]] = None
-    smoking_status: Optional[str] = None
-    alcohol_frequency: Optional[str] = None
-    exercise_frequency: Optional[str] = None
-    diet_type: Optional[str] = None
-    typical_sleep_hours: Optional[float] = None
+
+    height_cm: float | None = None
+    baseline_weight_kg: float | None = None
+    ethnicity: list[str] | None = None
+    smoking_status: str | None = None
+    alcohol_frequency: str | None = None
+    exercise_frequency: str | None = None
+    diet_type: str | None = None
+    typical_sleep_hours: float | None = None
 
 
 @router.get("/me", response_model=UserRead)
@@ -55,13 +56,13 @@ async def update_current_user(
 ) -> UserRead:
     """Update current user profile"""
     update_data = update.model_dump(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         setattr(user, field, value)
-    
+
     await session.commit()
     await session.refresh(user)
-    
+
     return UserRead.model_validate(user)
 
 
@@ -104,7 +105,7 @@ async def update_health_profile(
             **profile_data.model_dump(exclude_unset=True),
         )
         session.add(profile)
-    
+
     await session.commit()
-    
+
     return {"status": "updated"}

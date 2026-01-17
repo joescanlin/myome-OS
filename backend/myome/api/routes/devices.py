@@ -1,7 +1,6 @@
 """Device management routes"""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -16,28 +15,31 @@ router = APIRouter(prefix="/devices", tags=["Devices"])
 
 class DeviceCreate(BaseModel):
     """Device creation request"""
+
     name: str
     device_type: DeviceType
     vendor: DeviceVendor
-    model: Optional[str] = None
-    api_credentials: Optional[dict] = None
+    model: str | None = None
+    api_credentials: dict | None = None
 
 
 class DeviceRead(BaseModel):
     """Device response"""
+
     id: str
     name: str
     device_type: str
     vendor: str
-    model: Optional[str]
+    model: str | None
     is_connected: bool
-    last_sync_at: Optional[datetime]
-    
+    last_sync_at: datetime | None
+
     model_config = {"from_attributes": True}
 
 
 class DeviceSyncRequest(BaseModel):
     """Device sync request"""
+
     hours_back: int = 24
 
 
@@ -47,9 +49,7 @@ async def list_devices(
     session: DbSession,
 ) -> list[DeviceRead]:
     """List user's connected devices"""
-    result = await session.execute(
-        select(Device).where(Device.user_id == user.id)
-    )
+    result = await session.execute(select(Device).where(Device.user_id == user.id))
     devices = result.scalars().all()
     return [DeviceRead.model_validate(d) for d in devices]
 
@@ -72,7 +72,7 @@ async def add_device(
     session.add(device)
     await session.commit()
     await session.refresh(device)
-    
+
     return DeviceRead.model_validate(device)
 
 
@@ -90,13 +90,13 @@ async def get_device(
         )
     )
     device = result.scalar_one_or_none()
-    
+
     if not device:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device not found",
         )
-    
+
     return DeviceRead.model_validate(device)
 
 
@@ -114,13 +114,13 @@ async def delete_device(
         )
     )
     device = result.scalar_one_or_none()
-    
+
     if not device:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device not found",
         )
-    
+
     await session.delete(device)
     await session.commit()
 
@@ -140,22 +140,22 @@ async def sync_device(
         )
     )
     device = result.scalar_one_or_none()
-    
+
     if not device:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device not found",
         )
-    
+
     # Trigger async sync via Celery
     from myome.sensors.tasks import sync_user_devices
-    
+
     task = sync_user_devices.delay(user.id, sync_request.hours_back)
-    
+
     # Update last sync time
-    device.last_sync_at = datetime.now(timezone.utc)
+    device.last_sync_at = datetime.now(UTC)
     await session.commit()
-    
+
     return {
         "status": "sync_started",
         "task_id": task.id,

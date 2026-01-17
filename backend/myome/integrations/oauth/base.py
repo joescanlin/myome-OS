@@ -3,8 +3,7 @@
 import secrets
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 import httpx
@@ -13,15 +12,16 @@ import httpx
 @dataclass
 class OAuthTokens:
     """OAuth token response"""
+
     access_token: str
-    refresh_token: Optional[str]
+    refresh_token: str | None
     expires_at: datetime
     token_type: str = "Bearer"
-    scope: Optional[str] = None
-    
+    scope: str | None = None
+
     def is_expired(self) -> bool:
-        return datetime.now(timezone.utc) >= self.expires_at
-    
+        return datetime.now(UTC) >= self.expires_at
+
     def to_dict(self) -> dict:
         return {
             "access_token": self.access_token,
@@ -30,7 +30,7 @@ class OAuthTokens:
             "token_type": self.token_type,
             "scope": self.scope,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "OAuthTokens":
         expires_at = data.get("expires_at")
@@ -47,11 +47,11 @@ class OAuthTokens:
 
 class OAuthProvider(ABC):
     """Base class for OAuth 2.0 providers"""
-    
+
     provider_name: str = "base"
     authorization_url: str = ""
     token_url: str = ""
-    
+
     def __init__(
         self,
         client_id: str,
@@ -63,23 +63,23 @@ class OAuthProvider(ABC):
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
         self.scopes = scopes
-        self._http_client: Optional[httpx.AsyncClient] = None
-    
+        self._http_client: httpx.AsyncClient | None = None
+
     @property
     def http_client(self) -> httpx.AsyncClient:
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(timeout=30.0)
         return self._http_client
-    
+
     async def close(self):
         if self._http_client:
             await self._http_client.aclose()
             self._http_client = None
-    
+
     def generate_state(self) -> str:
         """Generate a random state token for CSRF protection"""
         return secrets.token_urlsafe(32)
-    
+
     def get_authorization_url(self, state: str) -> str:
         """Build the authorization URL for user redirect"""
         params = {
@@ -91,21 +91,21 @@ class OAuthProvider(ABC):
         }
         params.update(self._extra_auth_params())
         return f"{self.authorization_url}?{urlencode(params)}"
-    
+
     def _extra_auth_params(self) -> dict:
         """Override to add provider-specific auth params"""
         return {}
-    
+
     @abstractmethod
     async def exchange_code(self, code: str) -> OAuthTokens:
         """Exchange authorization code for tokens"""
         pass
-    
+
     @abstractmethod
     async def refresh_tokens(self, refresh_token: str) -> OAuthTokens:
         """Refresh expired access token"""
         pass
-    
+
     async def _token_request(self, data: dict) -> OAuthTokens:
         """Make token request to provider"""
         response = await self.http_client.post(
@@ -115,7 +115,7 @@ class OAuthProvider(ABC):
         )
         response.raise_for_status()
         return self._parse_token_response(response.json())
-    
+
     @abstractmethod
     def _parse_token_response(self, data: dict) -> OAuthTokens:
         """Parse provider-specific token response"""

@@ -1,19 +1,18 @@
 """Pytest configuration and fixtures"""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from myome.api.main import app
 from myome.core.database import Base, get_session
-from myome.core.models import User, HeartRateReading
-
+from myome.core.models import HeartRateReading, User
 
 # Test database URL (use SQLite for tests)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_myome.db"
@@ -31,15 +30,15 @@ def event_loop():
 async def engine():
     """Create test database engine"""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -51,7 +50,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session_factory() as session:
         yield session
 
@@ -60,7 +59,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 async def test_user(session: AsyncSession) -> User:
     """Create test user"""
     from myome.api.auth import get_password_hash
-    
+
     user = User(
         id=str(uuid4()),
         email="test@example.com",
@@ -79,7 +78,7 @@ async def test_user(session: AsyncSession) -> User:
 def auth_headers(test_user: User) -> dict:
     """Get auth headers for test user"""
     from myome.api.auth import create_token_pair
-    
+
     tokens = create_token_pair(test_user.id)
     return {"Authorization": f"Bearer {tokens.access_token}"}
 
@@ -88,8 +87,8 @@ def auth_headers(test_user: User) -> dict:
 async def sample_heart_rate_data(session: AsyncSession, test_user: User):
     """Create sample heart rate data"""
     readings = []
-    base_time = datetime.now(timezone.utc) - timedelta(days=7)
-    
+    base_time = datetime.now(UTC) - timedelta(days=7)
+
     for i in range(100):
         reading = HeartRateReading(
             timestamp=base_time + timedelta(hours=i),
@@ -98,7 +97,7 @@ async def sample_heart_rate_data(session: AsyncSession, test_user: User):
             confidence=0.95,
         )
         readings.append(reading)
-    
+
     session.add_all(readings)
     await session.commit()
     return readings
@@ -107,14 +106,14 @@ async def sample_heart_rate_data(session: AsyncSession, test_user: User):
 @pytest_asyncio.fixture(scope="function")
 async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client"""
-    
+
     async def override_get_session():
         yield session
-    
+
     app.dependency_overrides[get_session] = override_get_session
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
-    
+
     app.dependency_overrides.clear()

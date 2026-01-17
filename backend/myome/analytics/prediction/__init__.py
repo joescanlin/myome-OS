@@ -1,6 +1,10 @@
 """Prediction models module"""
 
-from myome.analytics.prediction.glucose import GlucoseResponsePredictor, GlucosePrediction, MealContext
+from myome.analytics.prediction.glucose import (
+    GlucosePrediction,
+    GlucoseResponsePredictor,
+    MealContext,
+)
 
 __all__ = [
     "GlucoseResponsePredictor",

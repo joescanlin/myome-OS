@@ -9,9 +9,9 @@ from myome.sensors.base import (
     SensorMetadata,
     SensorType,
 )
-from myome.sensors.registry import SensorRegistry
-from myome.sensors.normalizer import DataNormalizer
 from myome.sensors.ingestion import IngestionService
+from myome.sensors.normalizer import DataNormalizer
+from myome.sensors.registry import SensorRegistry
 
 __all__ = [
     "CalibrationParams",

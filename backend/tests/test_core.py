@@ -1,7 +1,6 @@
 """Tests for core module"""
 
-import pytest
-from myome.core.config import Settings, get_settings
+from myome.core.config import get_settings
 from myome.core.exceptions import MyomeException
 
 

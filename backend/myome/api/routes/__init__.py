@@ -1,6 +1,6 @@
 """API routes"""
 
-from myome.api.routes import auth, users, health, devices, alerts
+from myome.api.routes import alerts, auth, devices, health, users
 
 __all__ = [
     "auth",

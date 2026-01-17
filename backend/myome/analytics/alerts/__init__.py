@@ -1,7 +1,12 @@
 """Alerts and anomaly detection module"""
 
-from myome.analytics.alerts.anomaly import AnomalyDetector, Anomaly, AnomalyType, AlertPriority
-from myome.analytics.alerts.manager import AlertManager, Alert, AlertStatus
+from myome.analytics.alerts.anomaly import (
+    AlertPriority,
+    Anomaly,
+    AnomalyDetector,
+    AnomalyType,
+)
+from myome.analytics.alerts.manager import Alert, AlertManager, AlertStatus
 
 __all__ = [
     "AnomalyDetector",

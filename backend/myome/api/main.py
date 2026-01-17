@@ -6,7 +6,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from myome.api.routes import auth, users, health, devices, alerts, oauth, clinical, hereditary
+from myome.api.routes import (
+    alerts,
+    auth,
+    clinical,
+    devices,
+    health,
+    hereditary,
+    oauth,
+    users,
+)
 from myome.core.config import settings
 from myome.core.exceptions import MyomeException
 from myome.core.logging import logger
@@ -18,7 +27,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     logger.info(f"Environment: {settings.environment}")
-    logger.info(f"API docs available at /api/docs")
+    logger.info("API docs available at /api/docs")
     yield
     # Shutdown
     logger.info("Shutting down application")
@@ -99,6 +108,3 @@ async def health_check():
         "status": "healthy",
         "environment": settings.environment,
     }
-
-
-

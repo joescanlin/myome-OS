@@ -1,10 +1,9 @@
 """Generic adapter for manual data entry and CSV imports"""
 
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import AsyncIterator, Optional
 
 from myome.sensors.base import (
-    CalibrationParams,
     DataQuality,
     HealthSensor,
     Measurement,
@@ -15,7 +14,7 @@ from myome.sensors.base import (
 
 class ManualEntrySensor(HealthSensor):
     """Adapter for manually entered health data"""
-    
+
     def __init__(
         self,
         sensor_type: SensorType,
@@ -30,48 +29,45 @@ class ManualEntrySensor(HealthSensor):
             vendor="manual",
             model="User Entry",
         )
-    
+
     @property
     def sensor_id(self) -> str:
         return f"manual:{self._user_id}:{self._sensor_type.value}"
-    
+
     @property
     def sensor_type(self) -> SensorType:
         return self._sensor_type
-    
+
     @property
     def metadata(self) -> SensorMetadata:
         return self._metadata
-    
+
     async def connect(self) -> None:
         pass  # No connection needed
-    
+
     async def disconnect(self) -> None:
         pass
-    
+
     async def is_connected(self) -> bool:
         return True
-    
+
     async def stream_data(self) -> AsyncIterator[Measurement]:
         """Manual entry doesn't support streaming"""
         raise NotImplementedError("Manual entry doesn't support streaming")
-    
+
     async def get_historical(
         self,
         start: datetime,
         end: datetime,
     ) -> list[Measurement]:
         """Return stored measurements within date range"""
-        return [
-            m for m in self._measurements
-            if start <= m.timestamp <= end
-        ]
-    
+        return [m for m in self._measurements if start <= m.timestamp <= end]
+
     def add_measurement(
         self,
         timestamp: datetime,
         value: float,
-        notes: Optional[str] = None,
+        notes: str | None = None,
     ) -> Measurement:
         """Add a manual measurement"""
         measurement = Measurement(

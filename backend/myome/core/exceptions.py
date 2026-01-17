@@ -14,29 +14,35 @@ class MyomeException(Exception):
 
 class DatabaseException(MyomeException):
     """Database operation errors"""
+
     pass
 
 
 class SensorException(MyomeException):
     """Sensor connection or data errors"""
+
     pass
 
 
 class ValidationException(MyomeException):
     """Data validation errors"""
+
     pass
 
 
 class AuthenticationException(MyomeException):
     """Authentication and authorization errors"""
+
     pass
 
 
 class EncryptionException(MyomeException):
     """Encryption/decryption errors"""
+
     pass
 
 
 class AnalyticsException(MyomeException):
     """Analytics computation errors"""
+
     pass

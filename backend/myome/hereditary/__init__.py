@@ -1,9 +1,17 @@
 """Hereditary health artifacts for multi-generational health transfer"""
 
-from myome.hereditary.artifact import HereditaryArtifact, PrivacySettings, ArtifactReader
-from myome.hereditary.risk import FamilyRiskCalculator, FamilyOutcome, ComprehensiveRiskAssessment
+from myome.hereditary.artifact import (
+    ArtifactReader,
+    HereditaryArtifact,
+    PrivacySettings,
+)
 from myome.hereditary.document_processor import FamilyDocumentProcessor
-from myome.hereditary.watchlist import WatchlistGenerator, FamilyHistoryPDFGenerator
+from myome.hereditary.risk import (
+    ComprehensiveRiskAssessment,
+    FamilyOutcome,
+    FamilyRiskCalculator,
+)
+from myome.hereditary.watchlist import FamilyHistoryPDFGenerator, WatchlistGenerator
 
 __all__ = [
     "HereditaryArtifact",

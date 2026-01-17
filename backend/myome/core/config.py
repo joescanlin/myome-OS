@@ -38,9 +38,7 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0")
 
     # Security
-    secret_key: str = Field(
-        default="CHANGE-THIS-IN-PRODUCTION-USE-OPENSSL-RAND-HEX-32"
-    )
+    secret_key: str = Field(default="CHANGE-THIS-IN-PRODUCTION-USE-OPENSSL-RAND-HEX-32")
     access_token_expire_minutes: int = 60 * 24  # 24 hours
     refresh_token_expire_days: int = 30
 

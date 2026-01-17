@@ -1,31 +1,29 @@
 """Family document processing and data extraction"""
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
-from uuid import uuid4
 import re
-
-from myome.core.logging import logger
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 
 @dataclass
 class ExtractedBiomarker:
     """Extracted biomarker from document"""
+
     name: str
     value: float
     unit: str
-    reference_range: Optional[str] = None
-    is_abnormal: Optional[bool] = None
+    reference_range: str | None = None
+    is_abnormal: bool | None = None
     confidence: float = 1.0
 
 
 @dataclass
 class ExtractedCondition:
     """Extracted medical condition from document"""
+
     name: str
-    icd_code: Optional[str] = None
-    onset_date: Optional[str] = None
+    icd_code: str | None = None
+    onset_date: str | None = None
     status: str = "active"  # active, resolved, chronic
     confidence: float = 1.0
 
@@ -33,21 +31,23 @@ class ExtractedCondition:
 @dataclass
 class ExtractedMedication:
     """Extracted medication from document"""
+
     name: str
-    dosage: Optional[str] = None
-    frequency: Optional[str] = None
+    dosage: str | None = None
+    frequency: str | None = None
     confidence: float = 1.0
 
 
 @dataclass
 class DocumentExtractionResult:
     """Result of document extraction"""
+
     document_type: str
-    document_date: Optional[datetime] = None
+    document_date: datetime | None = None
     biomarkers: list[ExtractedBiomarker] = field(default_factory=list)
     conditions: list[ExtractedCondition] = field(default_factory=list)
     medications: list[ExtractedMedication] = field(default_factory=list)
-    raw_text: Optional[str] = None
+    raw_text: str | None = None
     overall_confidence: float = 1.0
     extraction_notes: list[str] = field(default_factory=list)
 
@@ -211,24 +211,24 @@ CONDITION_PATTERNS = {
 class FamilyDocumentProcessor:
     """
     Process uploaded family medical documents
-    
+
     Extracts biomarkers, conditions, and medications from
     lab reports, discharge summaries, and other medical documents.
     """
-    
+
     def __init__(self):
         self.biomarker_patterns = BIOMARKER_PATTERNS
         self.condition_patterns = CONDITION_PATTERNS
-    
+
     async def process_document(
         self,
         text: str,
         document_type: str = "unknown",
-        relative_age_at_document: Optional[int] = None,
+        relative_age_at_document: int | None = None,
     ) -> DocumentExtractionResult:
         """
         Process document text and extract medical data
-        
+
         Args:
             text: Raw text from document (after OCR if needed)
             document_type: Type of document (lab_report, discharge_summary, etc.)
@@ -238,52 +238,62 @@ class FamilyDocumentProcessor:
             document_type=document_type,
             raw_text=text,
         )
-        
+
         # Detect document type if not provided
         if document_type == "unknown":
             result.document_type = self._detect_document_type(text)
-        
+
         # Extract document date
         result.document_date = self._extract_date(text)
-        
+
         # Extract biomarkers
         result.biomarkers = self._extract_biomarkers(text)
-        
+
         # Extract conditions
         result.conditions = self._extract_conditions(text)
-        
+
         # Extract medications
         result.medications = self._extract_medications(text)
-        
+
         # Calculate overall confidence
         if result.biomarkers or result.conditions:
-            confidences = (
-                [b.confidence for b in result.biomarkers] +
-                [c.confidence for c in result.conditions]
-            )
+            confidences = [b.confidence for b in result.biomarkers] + [
+                c.confidence for c in result.conditions
+            ]
             result.overall_confidence = sum(confidences) / len(confidences)
         else:
             result.overall_confidence = 0.5
             result.extraction_notes.append("Limited data extracted from document")
-        
+
         return result
-    
+
     def _detect_document_type(self, text: str) -> str:
         """Detect document type from content"""
         text_lower = text.lower()
-        
-        if any(term in text_lower for term in ["lab result", "laboratory", "blood test", "lipid panel"]):
+
+        if any(
+            term in text_lower
+            for term in ["lab result", "laboratory", "blood test", "lipid panel"]
+        ):
             return "lab_report"
-        if any(term in text_lower for term in ["discharge summary", "hospital discharge", "admission"]):
+        if any(
+            term in text_lower
+            for term in ["discharge summary", "hospital discharge", "admission"]
+        ):
             return "discharge_summary"
-        if any(term in text_lower for term in ["prescription", "rx", "medication list"]):
+        if any(
+            term in text_lower for term in ["prescription", "rx", "medication list"]
+        ):
             return "prescription"
-        if any(term in text_lower for term in ["annual physical", "wellness visit", "checkup"]):
+        if any(
+            term in text_lower
+            for term in ["annual physical", "wellness visit", "checkup"]
+        ):
             return "physical_exam"
-        
+
         return "medical_record"
-    
-    def _extract_date(self, text: str) -> Optional[datetime]:
+
+    def _extract_date(self, text: str) -> datetime | None:
         """Extract document date"""
         # Common date patterns
         patterns = [
@@ -291,72 +301,82 @@ class FamilyDocumentProcessor:
             r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
             r"(\w+ \d{1,2},? \d{4})",
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 try:
                     date_str = match.group(1)
                     # Try common formats
-                    for fmt in ["%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%B %d, %Y", "%B %d %Y"]:
+                    for fmt in [
+                        "%m/%d/%Y",
+                        "%m-%d-%Y",
+                        "%m/%d/%y",
+                        "%B %d, %Y",
+                        "%B %d %Y",
+                    ]:
                         try:
-                            return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
+                            return datetime.strptime(date_str, fmt).replace(tzinfo=UTC)
                         except ValueError:
                             continue
                 except Exception:
                     continue
-        
+
         return None
-    
+
     def _extract_biomarkers(self, text: str) -> list[ExtractedBiomarker]:
         """Extract biomarkers from text"""
         biomarkers = []
-        
+
         for name, config in self.biomarker_patterns.items():
             for pattern in config["patterns"]:
                 match = re.search(pattern, text, re.IGNORECASE)
                 if match:
                     try:
                         value = float(match.group(1))
-                        
+
                         # Check if abnormal
                         normal_min, normal_max = config["normal_range"]
                         is_abnormal = value < normal_min or value > normal_max
-                        
-                        biomarkers.append(ExtractedBiomarker(
-                            name=name,
-                            value=value,
-                            unit=config["unit"],
-                            reference_range=f"{normal_min}-{normal_max}",
-                            is_abnormal=is_abnormal,
-                            confidence=0.9,
-                        ))
+
+                        biomarkers.append(
+                            ExtractedBiomarker(
+                                name=name,
+                                value=value,
+                                unit=config["unit"],
+                                reference_range=f"{normal_min}-{normal_max}",
+                                is_abnormal=is_abnormal,
+                                confidence=0.9,
+                            )
+                        )
                         break  # Found match, move to next biomarker
                     except (ValueError, IndexError):
                         continue
-        
+
         return biomarkers
-    
+
     def _extract_conditions(self, text: str) -> list[ExtractedCondition]:
         """Extract medical conditions from text"""
         conditions = []
-        
+
         for condition_name, patterns in self.condition_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, text, re.IGNORECASE):
-                    conditions.append(ExtractedCondition(
-                        name=condition_name,
-                        status="active",
-                        confidence=0.85,
-                    ))
+                    conditions.append(
+                        ExtractedCondition(
+                            name=condition_name,
+                            status="active",
+                            confidence=0.85,
+                        )
+                    )
                     break
-        
+
         return conditions
-    
+
     def _extract_medications(self, text: str) -> list[ExtractedMedication]:
         """Extract medications from text"""
         medications = []
-        
+
         # Common medication patterns
         common_meds = [
             ("metformin", r"Metformin\s*(?:(\d+\s*mg))?"),
@@ -370,28 +390,30 @@ class FamilyDocumentProcessor:
             ("aspirin", r"Aspirin\s*(?:(\d+\s*mg))?"),
             ("warfarin", r"(?:Warfarin|Coumadin)\s*(?:(\d+\s*mg))?"),
         ]
-        
+
         for med_name, pattern in common_meds:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 dosage = match.group(1) if match.lastindex and match.group(1) else None
-                medications.append(ExtractedMedication(
-                    name=med_name,
-                    dosage=dosage,
-                    confidence=0.8,
-                ))
-        
+                medications.append(
+                    ExtractedMedication(
+                        name=med_name,
+                        dosage=dosage,
+                        confidence=0.8,
+                    )
+                )
+
         return medications
-    
+
     def convert_to_family_member_data(
         self,
         extraction: DocumentExtractionResult,
         relationship: str,
-        age_at_document: Optional[int] = None,
+        age_at_document: int | None = None,
     ) -> dict:
         """
         Convert extraction result to FamilyMember-compatible format
-        
+
         Args:
             extraction: Document extraction result
             relationship: Relationship to user
@@ -406,7 +428,7 @@ class FamilyDocumentProcessor:
                 "age_at_measurement": age_at_document,
                 "is_abnormal": b.is_abnormal,
             }
-        
+
         # Convert conditions to storage format
         conditions = [
             {
@@ -416,7 +438,7 @@ class FamilyDocumentProcessor:
             }
             for c in extraction.conditions
         ]
-        
+
         # Convert medications
         medications = [
             {
@@ -425,7 +447,7 @@ class FamilyDocumentProcessor:
             }
             for m in extraction.medications
         ]
-        
+
         return {
             "relationship": relationship,
             "biomarkers": biomarkers,

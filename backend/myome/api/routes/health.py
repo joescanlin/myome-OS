@@ -1,7 +1,6 @@
 """Health data routes"""
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel
@@ -10,119 +9,131 @@ from sqlalchemy import select
 from myome.analytics.service import AnalyticsService
 from myome.api.deps.auth import CurrentUser
 from myome.api.deps.db import DbSession
-from myome.core.models import HeartRateReading, GlucoseReading, SleepSession, BodyComposition
+from myome.core.models import (
+    BodyComposition,
+    GlucoseReading,
+    HeartRateReading,
+    SleepSession,
+)
 
 router = APIRouter(prefix="/health", tags=["Health Data"])
 
 
 class HeartRateCreate(BaseModel):
     """Heart rate creation request"""
+
     timestamp: datetime
     heart_rate_bpm: int
-    activity_type: Optional[str] = None
-    confidence: Optional[float] = None
-    device_id: Optional[str] = None
+    activity_type: str | None = None
+    confidence: float | None = None
+    device_id: str | None = None
 
 
 class HeartRateRead(BaseModel):
     """Heart rate response"""
+
     timestamp: datetime
     heart_rate_bpm: int
-    activity_type: Optional[str] = None
-    confidence: Optional[float] = None
-    device_id: Optional[str] = None
-    
+    activity_type: str | None = None
+    confidence: float | None = None
+    device_id: str | None = None
+
     model_config = {"from_attributes": True}
 
 
 class GlucoseCreate(BaseModel):
     """Glucose creation request"""
+
     timestamp: datetime
     glucose_mg_dl: float
-    trend: Optional[str] = None
-    meal_context: Optional[str] = None
-    device_id: Optional[str] = None
+    trend: str | None = None
+    meal_context: str | None = None
+    device_id: str | None = None
 
 
 class GlucoseRead(BaseModel):
     """Glucose response"""
+
     timestamp: datetime
     glucose_mg_dl: float
-    trend: Optional[str] = None
-    meal_context: Optional[str] = None
-    device_id: Optional[str] = None
-    
+    trend: str | None = None
+    meal_context: str | None = None
+    device_id: str | None = None
+
     model_config = {"from_attributes": True}
 
 
 class BodyCompositionCreate(BaseModel):
     """Body composition creation request"""
+
     timestamp: datetime
     weight_kg: float
-    body_fat_pct: Optional[float] = None
-    muscle_mass_kg: Optional[float] = None
-    bone_mass_kg: Optional[float] = None
-    water_pct: Optional[float] = None
-    device_id: Optional[str] = None
+    body_fat_pct: float | None = None
+    muscle_mass_kg: float | None = None
+    bone_mass_kg: float | None = None
+    water_pct: float | None = None
+    device_id: str | None = None
 
 
 class BodyCompositionRead(BaseModel):
     """Body composition response"""
+
     timestamp: datetime
     weight_kg: float
-    body_fat_pct: Optional[float] = None
-    muscle_mass_kg: Optional[float] = None
-    device_id: Optional[str] = None
-    
+    body_fat_pct: float | None = None
+    muscle_mass_kg: float | None = None
+    device_id: str | None = None
+
     model_config = {"from_attributes": True}
 
 
 class BloodPressureCreate(BaseModel):
     """Blood pressure creation request"""
+
     timestamp: datetime
     systolic_mmhg: int
     diastolic_mmhg: int
-    pulse_bpm: Optional[int] = None
-    device_id: Optional[str] = None
+    pulse_bpm: int | None = None
+    device_id: str | None = None
 
 
 class SleepCreate(BaseModel):
     """Sleep session creation request"""
+
     start_time: datetime
     end_time: datetime
     total_sleep_minutes: int
-    deep_sleep_minutes: Optional[int] = None
-    rem_sleep_minutes: Optional[int] = None
-    light_sleep_minutes: Optional[int] = None
-    sleep_score: Optional[int] = None
-    device_id: Optional[str] = None
+    deep_sleep_minutes: int | None = None
+    rem_sleep_minutes: int | None = None
+    light_sleep_minutes: int | None = None
+    sleep_score: int | None = None
+    device_id: str | None = None
 
 
 # ============== Heart Rate ==============
+
 
 @router.get("/heart-rate")
 async def get_heart_rate(
     user: CurrentUser,
     session: DbSession,
-    start: Optional[datetime] = Query(default=None),
-    end: Optional[datetime] = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     limit: int = Query(default=1000, le=10000),
 ) -> list[HeartRateRead]:
     """Get heart rate readings"""
-    query = select(HeartRateReading).where(
-        HeartRateReading.user_id == user.id
-    )
-    
+    query = select(HeartRateReading).where(HeartRateReading.user_id == user.id)
+
     if start:
         query = query.where(HeartRateReading.timestamp >= start)
     if end:
         query = query.where(HeartRateReading.timestamp <= end)
-    
+
     query = query.order_by(HeartRateReading.timestamp.desc()).limit(limit)
-    
+
     result = await session.execute(query)
     readings = result.scalars().all()
-    
+
     return [HeartRateRead.model_validate(r) for r in readings]
 
 
@@ -144,35 +155,34 @@ async def add_heart_rate(
     session.add(hr)
     await session.commit()
     await session.refresh(hr)
-    
+
     return HeartRateRead.model_validate(hr)
 
 
 # ============== Glucose ==============
 
+
 @router.get("/glucose")
 async def get_glucose(
     user: CurrentUser,
     session: DbSession,
-    start: Optional[datetime] = Query(default=None),
-    end: Optional[datetime] = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     limit: int = Query(default=1000, le=10000),
 ) -> list[GlucoseRead]:
     """Get glucose readings"""
-    query = select(GlucoseReading).where(
-        GlucoseReading.user_id == user.id
-    )
-    
+    query = select(GlucoseReading).where(GlucoseReading.user_id == user.id)
+
     if start:
         query = query.where(GlucoseReading.timestamp >= start)
     if end:
         query = query.where(GlucoseReading.timestamp <= end)
-    
+
     query = query.order_by(GlucoseReading.timestamp.desc()).limit(limit)
-    
+
     result = await session.execute(query)
     readings = result.scalars().all()
-    
+
     return [GlucoseRead.model_validate(r) for r in readings]
 
 
@@ -194,35 +204,34 @@ async def add_glucose(
     session.add(glucose)
     await session.commit()
     await session.refresh(glucose)
-    
+
     return GlucoseRead.model_validate(glucose)
 
 
 # ============== Body Composition ==============
 
+
 @router.get("/body-composition")
 async def get_body_composition(
     user: CurrentUser,
     session: DbSession,
-    start: Optional[datetime] = Query(default=None),
-    end: Optional[datetime] = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     limit: int = Query(default=100, le=1000),
 ) -> list[BodyCompositionRead]:
     """Get body composition readings"""
-    query = select(BodyComposition).where(
-        BodyComposition.user_id == user.id
-    )
-    
+    query = select(BodyComposition).where(BodyComposition.user_id == user.id)
+
     if start:
         query = query.where(BodyComposition.timestamp >= start)
     if end:
         query = query.where(BodyComposition.timestamp <= end)
-    
+
     query = query.order_by(BodyComposition.timestamp.desc()).limit(limit)
-    
+
     result = await session.execute(query)
     readings = result.scalars().all()
-    
+
     return [BodyCompositionRead.model_validate(r) for r in readings]
 
 
@@ -246,11 +255,12 @@ async def add_body_composition(
     session.add(body_comp)
     await session.commit()
     await session.refresh(body_comp)
-    
+
     return BodyCompositionRead.model_validate(body_comp)
 
 
 # ============== Blood Pressure ==============
+
 
 @router.post("/blood-pressure", status_code=status.HTTP_201_CREATED)
 async def add_blood_pressure(
@@ -273,7 +283,7 @@ async def add_blood_pressure(
     )
     session.add(hr)
     await session.commit()
-    
+
     return {
         "timestamp": reading.timestamp.isoformat(),
         "systolic_mmhg": reading.systolic_mmhg,
@@ -285,29 +295,28 @@ async def add_blood_pressure(
 
 # ============== Sleep ==============
 
+
 @router.get("/sleep")
 async def get_sleep_sessions(
     user: CurrentUser,
     session: DbSession,
-    start: Optional[datetime] = Query(default=None),
-    end: Optional[datetime] = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     limit: int = Query(default=30, le=365),
 ) -> list[dict]:
     """Get sleep sessions"""
-    query = select(SleepSession).where(
-        SleepSession.user_id == user.id
-    )
-    
+    query = select(SleepSession).where(SleepSession.user_id == user.id)
+
     if start:
         query = query.where(SleepSession.start_time >= start)
     if end:
         query = query.where(SleepSession.start_time <= end)
-    
+
     query = query.order_by(SleepSession.start_time.desc()).limit(limit)
-    
+
     result = await session.execute(query)
     sessions = result.scalars().all()
-    
+
     return [
         {
             "id": s.id,
@@ -334,7 +343,7 @@ async def add_sleep_session(
 ) -> dict:
     """Add manual sleep session"""
     from uuid import uuid4
-    
+
     sleep = SleepSession(
         id=str(uuid4()),
         user_id=user.id,
@@ -350,7 +359,7 @@ async def add_sleep_session(
     session.add(sleep)
     await session.commit()
     await session.refresh(sleep)
-    
+
     return {
         "id": sleep.id,
         "start_time": sleep.start_time.isoformat(),
@@ -362,10 +371,11 @@ async def add_sleep_session(
 
 # ============== Analytics ==============
 
+
 @router.get("/analytics/daily")
 async def get_daily_analysis(
     user: CurrentUser,
-    date: Optional[datetime] = Query(default=None),
+    date: datetime | None = Query(default=None),
 ) -> dict:
     """Get daily health analysis"""
     service = AnalyticsService(user.id)
@@ -375,7 +385,7 @@ async def get_daily_analysis(
 @router.get("/analytics/score")
 async def get_health_score(
     user: CurrentUser,
-    date: Optional[datetime] = Query(default=None),
+    date: datetime | None = Query(default=None),
 ) -> dict:
     """Get overall health score"""
     service = AnalyticsService(user.id)
@@ -389,17 +399,17 @@ async def get_correlations(
 ) -> list[dict]:
     """Discover biomarker correlations"""
     from myome.analytics.correlation.engine import CorrelationEngine
-    
+
     engine = CorrelationEngine(user.id)
-    end = datetime.now(timezone.utc)
+    end = datetime.now(UTC)
     start = end - timedelta(days=days)
-    
+
     correlations = await engine.discover_all_correlations(
-        biomarkers=['heart_rate', 'hrv_sdnn', 'glucose'],
+        biomarkers=["heart_rate", "hrv_sdnn", "glucose"],
         start=start,
         end=end,
     )
-    
+
     return [c.to_dict() for c in correlations[:20]]
 
 
@@ -411,23 +421,24 @@ async def get_trends(
     """Get biomarker trends"""
     from myome.analytics.correlation.trends import TrendAnalyzer
     from myome.analytics.data_loader import TimeSeriesLoader
-    
+
     loader = TimeSeriesLoader(user.id)
     analyzer = TrendAnalyzer()
-    
-    end = datetime.now(timezone.utc)
+
+    end = datetime.now(UTC)
     start = end - timedelta(days=days)
-    
+
     df = await loader.load_multi_biomarker(
-        start, end,
-        biomarkers=['heart_rate', 'hrv_sdnn', 'glucose'],
-        resample='1D',
+        start,
+        end,
+        biomarkers=["heart_rate", "hrv_sdnn", "glucose"],
+        resample="1D",
     )
-    
+
     trends = []
     for column in df.columns:
         trend = analyzer.compute_trend(df[column], column)
         if trend and trend.is_significant:
             trends.append(trend.to_dict())
-    
+
     return trends

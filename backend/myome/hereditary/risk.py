@@ -1,15 +1,16 @@
 """Family-calibrated risk calculation"""
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+
 import numpy as np
 
 
 @dataclass
 class FamilyOutcome:
     """Health outcome from a family member"""
+
     condition: str
-    onset_age: Optional[int]
+    onset_age: int | None
     relatedness: float  # 0.5 for parent, 0.25 for grandparent
     genetic_similarity: float = 1.0  # 0-1 based on shared variants
     relationship: str = "unknown"
@@ -18,13 +19,14 @@ class FamilyOutcome:
 @dataclass
 class FamilyCalibratedRisk:
     """Result of family-calibrated risk calculation"""
+
     condition: str
     population_risk: float
     family_calibrated_risk: float
     confidence_interval: tuple[float, float]
     risk_increase_factor: float
     contributing_factors: list[str]
-    recommendation: Optional[str] = None
+    recommendation: str | None = None
 
 
 # Standard population risk estimates for common conditions
@@ -55,25 +57,25 @@ EARLY_ONSET_THRESHOLDS = {
 class FamilyRiskCalculator:
     """
     Calculate family-calibrated disease risk
-    
+
     Uses Bayesian updating to refine population-based risk scores
     with family health outcomes.
     """
-    
+
     def __init__(self, condition: str):
         self.condition = condition
         self.population_risk = POPULATION_RISKS.get(condition, 0.05)
         self.early_onset_threshold = EARLY_ONSET_THRESHOLDS.get(condition, 55)
-    
+
     def calculate_risk(
         self,
         family_outcomes: list[FamilyOutcome],
         user_age: int,
-        polygenic_risk_score: Optional[float] = None,
+        polygenic_risk_score: float | None = None,
     ) -> FamilyCalibratedRisk:
         """
         Calculate family-calibrated risk
-        
+
         Args:
             family_outcomes: Health outcomes from family members
             user_age: Current age of the user
@@ -85,13 +87,12 @@ class FamilyRiskCalculator:
             base_risk = self._prs_adjusted_risk(polygenic_risk_score)
         else:
             base_risk = self.population_risk
-        
+
         # Filter to relevant condition
         relevant_outcomes = [
-            o for o in family_outcomes
-            if o.condition.lower() == self.condition.lower()
+            o for o in family_outcomes if o.condition.lower() == self.condition.lower()
         ]
-        
+
         if not relevant_outcomes:
             return FamilyCalibratedRisk(
                 condition=self.condition,
@@ -102,29 +103,35 @@ class FamilyRiskCalculator:
                 contributing_factors=["No family history data available"],
                 recommendation=self._generate_recommendation(base_risk, []),
             )
-        
+
         # Calculate family likelihood ratio
         likelihood_ratio = self._compute_family_likelihood(relevant_outcomes, user_age)
-        
+
         # Bayesian update
         posterior = self._bayesian_update(base_risk, likelihood_ratio)
-        
+
         # Identify contributing factors
         factors = self._identify_factors(relevant_outcomes)
-        
+
         # Calculate risk increase
-        risk_factor = posterior['mean'] / self.population_risk if self.population_risk > 0 else 1.0
-        
+        risk_factor = (
+            posterior["mean"] / self.population_risk
+            if self.population_risk > 0
+            else 1.0
+        )
+
         return FamilyCalibratedRisk(
             condition=self.condition,
             population_risk=self.population_risk,
-            family_calibrated_risk=posterior['mean'],
-            confidence_interval=(posterior['ci_low'], posterior['ci_high']),
+            family_calibrated_risk=posterior["mean"],
+            confidence_interval=(posterior["ci_low"], posterior["ci_high"]),
             risk_increase_factor=risk_factor,
             contributing_factors=factors,
-            recommendation=self._generate_recommendation(posterior['mean'], relevant_outcomes),
+            recommendation=self._generate_recommendation(
+                posterior["mean"], relevant_outcomes
+            ),
         )
-    
+
     def _prs_adjusted_risk(self, prs_percentile: float) -> float:
         """Adjust population risk based on PRS percentile"""
         # Simplified model: PRS at 50th percentile = population risk
@@ -143,9 +150,9 @@ class FamilyRiskCalculator:
             multiplier = 0.7
         else:
             multiplier = 1.0
-        
+
         return min(self.population_risk * multiplier, 0.95)
-    
+
     def _compute_family_likelihood(
         self,
         outcomes: list[FamilyOutcome],
@@ -154,12 +161,12 @@ class FamilyRiskCalculator:
         """Compute likelihood ratio from family outcomes"""
         weighted_affected = 0.0
         total_weight = 0.0
-        
+
         for outcome in outcomes:
             # Weight by genetic relatedness
             weight = outcome.relatedness * outcome.genetic_similarity
             total_weight += weight
-            
+
             if outcome.onset_age is not None:
                 # Earlier onset = stronger signal
                 age_factor = self._age_adjustment(outcome.onset_age)
@@ -167,27 +174,27 @@ class FamilyRiskCalculator:
             else:
                 # Affected but unknown onset
                 weighted_affected += weight * 0.8
-        
+
         if total_weight == 0:
             return 1.0
-        
+
         # Normalize and compute likelihood ratio
         affected_proportion = weighted_affected / total_weight
-        
+
         # More affected relatives = higher likelihood ratio
         # Sigmoid function to bound between 0.5 and 4.0
         likelihood_ratio = 0.5 + 3.5 / (1 + np.exp(-3 * (affected_proportion - 0.5)))
-        
+
         return likelihood_ratio
-    
+
     def _age_adjustment(self, onset_age: int) -> float:
         """
         Adjust weight based on age of onset
-        
+
         Earlier onset suggests stronger genetic component
         """
         threshold = self.early_onset_threshold
-        
+
         if onset_age < threshold - 10:
             return 2.0  # Very early onset
         elif onset_age < threshold:
@@ -196,7 +203,7 @@ class FamilyRiskCalculator:
             return 1.0  # Typical onset
         else:
             return 0.7  # Late onset
-    
+
     def _bayesian_update(
         self,
         prior: float,
@@ -206,44 +213,50 @@ class FamilyRiskCalculator:
         # Convert to odds
         prior = max(0.001, min(0.999, prior))  # Bound away from 0 and 1
         prior_odds = prior / (1 - prior)
-        
+
         # Update with likelihood ratio
         posterior_odds = prior_odds * likelihood_ratio
         posterior_prob = posterior_odds / (1 + posterior_odds)
-        
+
         # Estimate confidence interval based on data quality
         ci_width = 0.15 / max(likelihood_ratio, 0.5)
         ci_low = max(0.001, posterior_prob - ci_width)
         ci_high = min(0.999, posterior_prob + ci_width)
-        
+
         return {
-            'mean': posterior_prob,
-            'ci_low': ci_low,
-            'ci_high': ci_high,
+            "mean": posterior_prob,
+            "ci_low": ci_low,
+            "ci_high": ci_high,
         }
-    
+
     def _identify_factors(self, outcomes: list[FamilyOutcome]) -> list[str]:
         """Identify key contributing factors"""
         factors = []
-        
+
         # Check for early onset
-        early_onset = [o for o in outcomes if o.onset_age and o.onset_age < self.early_onset_threshold]
+        early_onset = [
+            o
+            for o in outcomes
+            if o.onset_age and o.onset_age < self.early_onset_threshold
+        ]
         if early_onset:
             ages = [o.onset_age for o in early_onset]
             factors.append(f"Early onset in family (age {min(ages)}-{max(ages)})")
-        
+
         # Check for first-degree relatives
         first_degree = [o for o in outcomes if o.relatedness >= 0.5]
         if first_degree:
             relationships = list(set(o.relationship for o in first_degree))
-            factors.append(f"First-degree relative(s) affected: {', '.join(relationships)}")
-        
+            factors.append(
+                f"First-degree relative(s) affected: {', '.join(relationships)}"
+            )
+
         # Check for multiple affected
         if len(outcomes) > 1:
             factors.append(f"{len(outcomes)} family members affected")
-        
+
         return factors if factors else ["Family history present"]
-    
+
     def _generate_recommendation(
         self,
         risk: float,
@@ -251,50 +264,48 @@ class FamilyRiskCalculator:
     ) -> str:
         """Generate clinical recommendation based on risk level"""
         has_early_onset = any(
-            o.onset_age and o.onset_age < self.early_onset_threshold
-            for o in outcomes
+            o.onset_age and o.onset_age < self.early_onset_threshold for o in outcomes
         )
-        
+
         if risk >= 0.30:
             return f"High risk for {self.condition}. Recommend specialist consultation and enhanced screening."
         elif risk >= 0.15:
             if has_early_onset:
-                return f"Elevated risk with early-onset family history. Consider earlier screening initiation."
-            return f"Moderately elevated risk. Follow standard screening guidelines closely."
+                return "Elevated risk with early-onset family history. Consider earlier screening initiation."
+            return "Moderately elevated risk. Follow standard screening guidelines closely."
         elif risk >= 0.05:
-            return f"Average to slightly elevated risk. Maintain healthy lifestyle and regular check-ups."
+            return "Average to slightly elevated risk. Maintain healthy lifestyle and regular check-ups."
         else:
-            return f"Below average risk. Continue standard preventive care."
+            return "Below average risk. Continue standard preventive care."
 
 
 class ComprehensiveRiskAssessment:
     """
     Generate comprehensive risk assessment across multiple conditions
     """
-    
+
     CONDITIONS = list(POPULATION_RISKS.keys())
-    
+
     def __init__(self, user_age: int):
         self.user_age = user_age
         self.calculators = {
-            condition: FamilyRiskCalculator(condition)
-            for condition in self.CONDITIONS
+            condition: FamilyRiskCalculator(condition) for condition in self.CONDITIONS
         }
-    
+
     def assess_all_risks(
         self,
         family_outcomes: list[FamilyOutcome],
-        polygenic_scores: Optional[dict[str, float]] = None,
+        polygenic_scores: dict[str, float] | None = None,
     ) -> dict[str, FamilyCalibratedRisk]:
         """
         Calculate risk for all tracked conditions
-        
+
         Args:
             family_outcomes: All family health outcomes
             polygenic_scores: Dict mapping condition to PRS percentile
         """
         results = {}
-        
+
         for condition, calculator in self.calculators.items():
             prs = polygenic_scores.get(condition) if polygenic_scores else None
             results[condition] = calculator.calculate_risk(
@@ -302,9 +313,9 @@ class ComprehensiveRiskAssessment:
                 user_age=self.user_age,
                 polygenic_risk_score=prs,
             )
-        
+
         return results
-    
+
     def get_priority_conditions(
         self,
         risks: dict[str, FamilyCalibratedRisk],
@@ -312,13 +323,12 @@ class ComprehensiveRiskAssessment:
     ) -> list[FamilyCalibratedRisk]:
         """
         Get conditions where family-calibrated risk exceeds threshold
-        
+
         Args:
             risks: Results from assess_all_risks
             threshold: Risk increase factor threshold
         """
         priority = [
-            risk for risk in risks.values()
-            if risk.risk_increase_factor >= threshold
+            risk for risk in risks.values() if risk.risk_increase_factor >= threshold
         ]
         return sorted(priority, key=lambda r: r.risk_increase_factor, reverse=True)

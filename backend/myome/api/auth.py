@@ -1,7 +1,6 @@
 """Authentication and authorization utilities"""
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from jose import JWTError, jwt
@@ -10,13 +9,13 @@ from pydantic import BaseModel
 from myome.core.config import settings
 from myome.core.exceptions import AuthenticationException
 
-
 # JWT settings
 ALGORITHM = "HS256"
 
 
 class TokenPayload(BaseModel):
     """JWT token payload"""
+
     sub: str  # user_id
     exp: datetime
     type: str  # "access" or "refresh"
@@ -24,6 +23,7 @@ class TokenPayload(BaseModel):
 
 class TokenPair(BaseModel):
     """Access and refresh token pair"""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -32,22 +32,18 @@ class TokenPair(BaseModel):
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     return bcrypt.checkpw(
-        plain_password.encode('utf-8'),
-        hashed_password.encode('utf-8')
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
     )
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    return bcrypt.hashpw(
-        password.encode('utf-8'),
-        bcrypt.gensalt()
-    ).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(user_id: str) -> str:
     """Create access token"""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = TokenPayload(
         sub=user_id,
         exp=expire,
@@ -58,7 +54,7 @@ def create_access_token(user_id: str) -> str:
 
 def create_refresh_token(user_id: str) -> str:
     """Create refresh token"""
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     payload = TokenPayload(
         sub=user_id,
         exp=expire,
@@ -87,24 +83,24 @@ def decode_token(token: str) -> TokenPayload:
 def verify_access_token(token: str) -> str:
     """Verify access token and return user_id"""
     payload = decode_token(token)
-    
+
     if payload.type != "access":
         raise AuthenticationException("Invalid token type")
-    
-    if payload.exp < datetime.now(timezone.utc):
+
+    if payload.exp < datetime.now(UTC):
         raise AuthenticationException("Token expired")
-    
+
     return payload.sub
 
 
 def verify_refresh_token(token: str) -> str:
     """Verify refresh token and return user_id"""
     payload = decode_token(token)
-    
+
     if payload.type != "refresh":
         raise AuthenticationException("Invalid token type")
-    
-    if payload.exp < datetime.now(timezone.utc):
+
+    if payload.exp < datetime.now(UTC):
         raise AuthenticationException("Token expired")
-    
+
     return payload.sub

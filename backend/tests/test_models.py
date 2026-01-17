@@ -1,26 +1,24 @@
 """Tests for database models"""
 
-import pytest
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from myome.core.models import (
-    User,
-    HealthProfile,
-    Device,
-    HeartRateReading,
-    HRVReading,
-    GlucoseReading,
-    SleepSession,
     ActivityReading,
     BodyComposition,
+    Device,
+    GlucoseReading,
+    HeartRateReading,
+    HRVReading,
+    SleepSession,
+    User,
 )
 from myome.core.models.device import DeviceType, DeviceVendor
 
 
 class TestUserModel:
     """Tests for User model"""
-    
+
     def test_user_creation(self):
         """Test creating a user instance"""
         user = User(
@@ -35,9 +33,9 @@ class TestUserModel:
         assert user.email == "test@example.com"
         assert user.first_name == "John"
         assert user.last_name == "Doe"
-        assert user.is_active == True
-        assert user.is_verified == False
-    
+        assert user.is_active
+        assert not user.is_verified
+
     def test_user_full_name(self):
         """Test full_name property"""
         user = User(
@@ -48,7 +46,7 @@ class TestUserModel:
             last_name="Smith",
         )
         assert user.full_name == "Jane Smith"
-    
+
     def test_user_full_name_no_name(self):
         """Test full_name falls back to email prefix"""
         user = User(
@@ -57,7 +55,7 @@ class TestUserModel:
             hashed_password="hash",
         )
         assert user.full_name == "johndoe"
-    
+
     def test_user_age_calculation(self):
         """Test age property calculation"""
         user = User(
@@ -69,7 +67,7 @@ class TestUserModel:
         # Age should be calculated correctly
         assert user.age is not None
         assert user.age >= 35  # As of 2026
-    
+
     def test_user_age_none_when_no_dob(self):
         """Test age is None when no date of birth"""
         user = User(
@@ -78,7 +76,7 @@ class TestUserModel:
             hashed_password="hash",
         )
         assert user.age is None
-    
+
     def test_user_repr(self):
         """Test user string representation"""
         user = User(
@@ -91,7 +89,7 @@ class TestUserModel:
 
 class TestDeviceModel:
     """Tests for Device model"""
-    
+
     def test_device_creation(self):
         """Test creating a device instance"""
         device = Device(
@@ -105,14 +103,14 @@ class TestDeviceModel:
         assert device.device_type == DeviceType.SMART_RING
         assert device.vendor == DeviceVendor.OURA
         assert device.name == "My Oura Ring"
-        assert device.is_connected == False
-    
+        assert not device.is_connected
+
     def test_device_types_enum(self):
         """Test device type enum values"""
         assert DeviceType.CGM == "cgm"
         assert DeviceType.SMARTWATCH == "smartwatch"
         assert DeviceType.SMART_SCALE == "smart_scale"
-    
+
     def test_device_vendors_enum(self):
         """Test device vendor enum values"""
         assert DeviceVendor.DEXCOM == "dexcom"
@@ -122,11 +120,11 @@ class TestDeviceModel:
 
 class TestTimeSeriesModels:
     """Tests for time-series models"""
-    
+
     def test_heart_rate_reading(self):
         """Test heart rate reading creation"""
         reading = HeartRateReading(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             user_id=str(uuid4()),
             heart_rate_bpm=72,
             activity_type="resting",
@@ -135,11 +133,11 @@ class TestTimeSeriesModels:
         assert reading.heart_rate_bpm == 72
         assert reading.activity_type == "resting"
         assert reading.confidence == 0.95
-    
+
     def test_hrv_reading(self):
         """Test HRV reading creation"""
         reading = HRVReading(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             user_id=str(uuid4()),
             sdnn_ms=45.5,
             rmssd_ms=38.2,
@@ -148,11 +146,11 @@ class TestTimeSeriesModels:
         )
         assert reading.sdnn_ms == 45.5
         assert reading.rmssd_ms == 38.2
-    
+
     def test_glucose_reading(self):
         """Test glucose reading creation"""
         reading = GlucoseReading(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             user_id=str(uuid4()),
             glucose_mg_dl=105.0,
             trend="stable",
@@ -160,11 +158,11 @@ class TestTimeSeriesModels:
         )
         assert reading.glucose_mg_dl == 105.0
         assert reading.trend == "stable"
-        assert reading.is_calibrated == True
-    
+        assert reading.is_calibrated
+
     def test_sleep_session(self):
         """Test sleep session creation"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = SleepSession(
             id=str(uuid4()),
             user_id=str(uuid4()),
@@ -180,11 +178,11 @@ class TestTimeSeriesModels:
         )
         assert session.total_sleep_minutes == 420
         assert session.sleep_score == 85
-    
+
     def test_activity_reading(self):
         """Test activity reading creation"""
         reading = ActivityReading(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             user_id=str(uuid4()),
             steps=8500,
             distance_meters=6800.0,
@@ -193,11 +191,11 @@ class TestTimeSeriesModels:
         )
         assert reading.steps == 8500
         assert reading.distance_meters == 6800.0
-    
+
     def test_body_composition(self):
         """Test body composition creation"""
         reading = BodyComposition(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             user_id=str(uuid4()),
             weight_kg=75.5,
             body_fat_pct=18.5,
