@@ -1,8 +1,19 @@
-"""API integration tests"""
+"""API integration tests
 
+These tests require PostgreSQL with TimescaleDB. They are skipped when running
+with SQLite (local development). In CI, the PostgreSQL service is available.
+"""
+
+import os
 import pytest
 from datetime import datetime, timezone
 from httpx import AsyncClient
+
+# Skip all tests in this module if not using PostgreSQL
+pytestmark = pytest.mark.skipif(
+    "postgresql" not in os.environ.get("DATABASE_URL", ""),
+    reason="Integration tests require PostgreSQL"
+)
 
 
 @pytest.mark.asyncio
