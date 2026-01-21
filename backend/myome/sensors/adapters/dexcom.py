@@ -40,7 +40,7 @@ class DexcomAPIClient:
         self.base_url = self.BASE_URL_US if region == "us" else self.BASE_URL_OUS
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "DexcomAPIClient":
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers={"Authorization": f"Bearer {self.access_token}"},
@@ -48,15 +48,16 @@ class DexcomAPIClient:
         )
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args) -> None:
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     async def get_egvs(
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """
         Get estimated glucose values (EGVs)
 
@@ -65,6 +66,8 @@ class DexcomAPIClient:
         start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
         end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
 
+        if self._client is None:
+            raise RuntimeError("Dexcom API client not initialized")
         response = await self._client.get(
             "/v3/users/self/egvs",
             params={
@@ -74,17 +77,19 @@ class DexcomAPIClient:
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("records", [])
+        return list(data.get("records", []))
 
     async def get_calibrations(
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Get calibration records"""
         start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
         end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
 
+        if self._client is None:
+            raise RuntimeError("Dexcom API client not initialized")
         response = await self._client.get(
             "/v3/users/self/calibrations",
             params={
@@ -94,7 +99,7 @@ class DexcomAPIClient:
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("records", [])
+        return list(data.get("records", []))
 
 
 @SensorRegistry.register("dexcom", SensorType.GLUCOSE)
@@ -170,22 +175,26 @@ class DexcomGlucoseSensor(HealthSensor):
     async def is_connected(self) -> bool:
         return self._client is not None
 
-    async def stream_data(self) -> AsyncIterator[Measurement]:
+    def stream_data(self) -> AsyncIterator[Measurement]:
         """Stream glucose readings (poll every 5 minutes to match CGM cadence)"""
-        last_timestamp = datetime.utcnow() - timedelta(hours=1)
 
-        while True:
-            end = datetime.utcnow()
+        async def _stream() -> AsyncIterator[Measurement]:
+            last_timestamp = datetime.utcnow() - timedelta(hours=1)
 
-            measurements = await self.get_historical(last_timestamp, end)
+            while True:
+                end = datetime.utcnow()
 
-            for m in measurements:
-                if m.timestamp > last_timestamp:
-                    yield m
-                    last_timestamp = m.timestamp
+                measurements = await self.get_historical(last_timestamp, end)
 
-            # Dexcom updates every 5 minutes
-            await asyncio.sleep(300)
+                for m in measurements:
+                    if m.timestamp > last_timestamp:
+                        yield m
+                        last_timestamp = m.timestamp
+
+                # Dexcom updates every 5 minutes
+                await asyncio.sleep(300)
+
+        return _stream()
 
     async def get_historical(
         self,
@@ -198,12 +207,13 @@ class DexcomGlucoseSensor(HealthSensor):
 
         raw_data = await self._client.get_egvs(start, end)
 
-        measurements = []
+        measurements: list[Measurement] = []
         for reading in raw_data:
             # Parse timestamp
-            timestamp = datetime.fromisoformat(
-                reading["systemTime"].replace("Z", "+00:00")
-            )
+            timestamp_str = str(reading.get("systemTime", ""))
+            if not timestamp_str:
+                continue
+            timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
 
             # Get glucose value
             glucose_mg_dl = reading.get("value")
@@ -211,7 +221,12 @@ class DexcomGlucoseSensor(HealthSensor):
                 continue
 
             # Apply calibration (mainly lag compensation)
-            calibrated_value = self._calibration.apply(glucose_mg_dl)
+            glucose_value = (
+                float(glucose_mg_dl)
+                if isinstance(glucose_mg_dl, (int, float, str))
+                else 0.0
+            )
+            calibrated_value = self._calibration.apply(glucose_value)
 
             # Determine quality based on Dexcom's quality indicators
             quality = DataQuality.HIGH  # Dexcom is FDA-approved
@@ -220,7 +235,7 @@ class DexcomGlucoseSensor(HealthSensor):
 
             # Map trend arrow
             trend_direction = reading.get("trendDirection", "none")
-            trend = self.TREND_ARROWS.get(trend_direction)
+            trend = self.TREND_ARROWS.get(str(trend_direction))
 
             measurements.append(
                 Measurement(

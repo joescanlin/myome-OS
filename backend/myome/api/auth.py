@@ -1,6 +1,7 @@
 """Authentication and authorization utilities"""
 
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import bcrypt
 from jose import JWTError, jwt
@@ -75,7 +76,8 @@ def decode_token(token: str) -> TokenPayload:
     """Decode and validate JWT token"""
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-        return TokenPayload(**payload)
+        payload_dict = cast(dict[str, Any], payload)
+        return TokenPayload(**payload_dict)
     except JWTError as e:
         raise AuthenticationException(f"Invalid token: {e}")
 

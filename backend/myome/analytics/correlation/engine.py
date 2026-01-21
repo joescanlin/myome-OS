@@ -111,7 +111,9 @@ class CorrelationEngine:
             return None
 
         # Compute correlation
-        r, p_value = stats.pearsonr(x, y)
+        r, p_value = stats.pearsonr(
+            np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+        )
 
         return CorrelationResult(
             biomarker_1=biomarker_1,
@@ -122,7 +124,7 @@ class CorrelationEngine:
             n_observations=len(x),
             is_significant=p_value < self.alpha,
             interpretation=self._interpret_correlation(
-                r, biomarker_1, biomarker_2, lag_days
+                float(r), biomarker_1, biomarker_2, lag_days
             ),
         )
 

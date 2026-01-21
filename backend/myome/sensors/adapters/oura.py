@@ -28,7 +28,7 @@ class OuraAPIClient:
         self.access_token = access_token
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "OuraAPIClient":
         self._client = httpx.AsyncClient(
             base_url=self.BASE_URL,
             headers={"Authorization": f"Bearer {self.access_token}"},
@@ -36,39 +36,51 @@ class OuraAPIClient:
         )
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args) -> None:
         if self._client:
             await self._client.aclose()
+            self._client = None
 
-    async def get(self, endpoint: str, params: dict = None) -> dict:
+    async def get(self, endpoint: str, params: dict | None = None) -> dict[str, object]:
         """Make GET request to Oura API"""
+        if self._client is None:
+            raise RuntimeError("Oura API client not initialized")
         response = await self._client.get(endpoint, params=params)
         response.raise_for_status()
         return response.json()
 
-    async def get_sleep(self, start_date: str, end_date: str) -> list[dict]:
+    async def get_sleep(
+        self, start_date: str, end_date: str
+    ) -> list[dict[str, object]]:
         """Get sleep data for date range"""
         data = await self.get(
             "/usercollection/sleep",
             params={"start_date": start_date, "end_date": end_date},
         )
-        return data.get("data", [])
+        records = data.get("data")
+        return list(records) if isinstance(records, list) else []
 
-    async def get_heart_rate(self, start_date: str, end_date: str) -> list[dict]:
+    async def get_heart_rate(
+        self, start_date: str, end_date: str
+    ) -> list[dict[str, object]]:
         """Get heart rate data"""
         data = await self.get(
             "/usercollection/heartrate",
             params={"start_date": start_date, "end_date": end_date},
         )
-        return data.get("data", [])
+        records = data.get("data")
+        return list(records) if isinstance(records, list) else []
 
-    async def get_daily_activity(self, start_date: str, end_date: str) -> list[dict]:
+    async def get_daily_activity(
+        self, start_date: str, end_date: str
+    ) -> list[dict[str, object]]:
         """Get daily activity data"""
         data = await self.get(
             "/usercollection/daily_activity",
             params={"start_date": start_date, "end_date": end_date},
         )
-        return data.get("data", [])
+        records = data.get("data")
+        return list(records) if isinstance(records, list) else []
 
 
 class OuraHeartRateSensor(HealthSensor):
@@ -109,19 +121,23 @@ class OuraHeartRateSensor(HealthSensor):
     async def is_connected(self) -> bool:
         return self._client is not None
 
-    async def stream_data(self) -> AsyncIterator[Measurement]:
+    def stream_data(self) -> AsyncIterator[Measurement]:
         """Oura doesn't support real-time streaming, poll periodically"""
-        while True:
-            # Get last hour of data
-            end = datetime.utcnow()
-            start = end - timedelta(hours=1)
 
-            measurements = await self.get_historical(start, end)
-            for m in measurements:
-                yield m
+        async def _stream() -> AsyncIterator[Measurement]:
+            while True:
+                # Get last hour of data
+                end = datetime.utcnow()
+                start = end - timedelta(hours=1)
 
-            # Poll every 5 minutes
-            await asyncio.sleep(300)
+                measurements = await self.get_historical(start, end)
+                for m in measurements:
+                    yield m
+
+                # Poll every 5 minutes
+                await asyncio.sleep(300)
+
+        return _stream()
 
     async def get_historical(
         self,
@@ -137,11 +153,12 @@ class OuraHeartRateSensor(HealthSensor):
 
         raw_data = await self._client.get_heart_rate(start_str, end_str)
 
-        measurements = []
+        measurements: list[Measurement] = []
         for reading in raw_data:
-            timestamp = datetime.fromisoformat(
-                reading["timestamp"].replace("Z", "+00:00")
-            )
+            timestamp_str = str(reading.get("timestamp", ""))
+            if not timestamp_str:
+                continue
+            timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
 
             # Skip if outside requested range
             if timestamp < start or timestamp > end:
@@ -152,7 +169,8 @@ class OuraHeartRateSensor(HealthSensor):
                 continue
 
             # Apply calibration
-            calibrated_bpm = self._calibration.apply(bpm)
+            bpm_value = float(bpm) if isinstance(bpm, (int, float, str)) else 0.0
+            calibrated_bpm = self._calibration.apply(bpm_value)
 
             measurements.append(
                 Measurement(
@@ -214,7 +232,7 @@ class OuraSleepSensor(HealthSensor):
     async def is_connected(self) -> bool:
         return self._client is not None
 
-    async def stream_data(self) -> AsyncIterator[Measurement]:
+    def stream_data(self) -> AsyncIterator[Measurement]:
         """Sleep data is batch, not streaming"""
         raise NotImplementedError("Sleep data doesn't support streaming")
 
@@ -235,15 +253,22 @@ class OuraSleepSensor(HealthSensor):
         measurements = []
         for session in raw_data:
             # Parse session timing
-            bedtime = datetime.fromisoformat(
-                session["bedtime_start"].replace("Z", "+00:00")
-            )
+            bedtime_str = str(session.get("bedtime_start", ""))
+            if not bedtime_str:
+                continue
+            bedtime = datetime.fromisoformat(bedtime_str.replace("Z", "+00:00"))
 
             # Create measurement with sleep session data
             measurements.append(
                 Measurement(
                     timestamp=bedtime,
-                    value=session.get("total_sleep_duration", 0)
+                    value=(
+                        float(session.get("total_sleep_duration", 0))
+                        if isinstance(
+                            session.get("total_sleep_duration", 0), (int, float, str)
+                        )
+                        else 0.0
+                    )
                     / 60,  # Convert to minutes
                     unit="minutes",
                     sensor_type=SensorType.SLEEP,

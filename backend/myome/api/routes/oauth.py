@@ -1,6 +1,6 @@
 """OAuth callback routes for device integrations"""
 
-from typing import Literal
+from typing import Literal, cast
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -20,7 +20,7 @@ _oauth_states: dict[str, dict] = {}
 ProviderType = Literal["whoop", "withings"]
 
 
-def get_oauth_provider(provider: ProviderType):
+def get_oauth_provider(provider: ProviderType) -> WhoopOAuth | WithingsOAuth:
     """Get OAuth provider instance"""
     if provider == "whoop":
         if not settings.whoop_client_id:
@@ -185,7 +185,7 @@ async def refresh_device_tokens(
         raise HTTPException(status_code=400, detail="No refresh token available")
 
     # Refresh tokens
-    oauth = get_oauth_provider(device.vendor)  # type: ignore
+    oauth = get_oauth_provider(cast(ProviderType, device.vendor))
     try:
         new_tokens = await oauth.refresh_tokens(tokens.refresh_token)
     finally:

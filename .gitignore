@@ -3,13 +3,13 @@
 # ============================================
 docs/build-guide/
 generate_section_pages.py
-index.html
-paper.html
-myome ai.html
-myome-logo.svg
-myome-preview-light.png
-myome-preview-light.svg
-myome-preview.svg
+/index.html
+/paper.html
+/myome ai.html
+/myome-logo.svg
+/myome-preview-light.png
+/myome-preview-light.svg
+/myome-preview.svg
 posts/
 
 # ============================================

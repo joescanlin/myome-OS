@@ -21,7 +21,9 @@ class RateLimiter:
         self._minute_counts: dict[str, list[float]] = defaultdict(list)
         self._hour_counts: dict[str, list[float]] = defaultdict(list)
 
-    def _clean_old_requests(self, key: str, window_seconds: int, storage: dict):
+    def _clean_old_requests(
+        self, key: str, window_seconds: int, storage: dict[str, list[float]]
+    ) -> None:
         """Remove requests older than window"""
         now = time.time()
         storage[key] = [ts for ts in storage[key] if now - ts < window_seconds]

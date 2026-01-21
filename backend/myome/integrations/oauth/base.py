@@ -36,6 +36,8 @@ class OAuthTokens:
         expires_at = data.get("expires_at")
         if isinstance(expires_at, str):
             expires_at = datetime.fromisoformat(expires_at)
+        if not isinstance(expires_at, datetime):
+            expires_at = datetime.now(UTC)
         return cls(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
@@ -71,7 +73,7 @@ class OAuthProvider(ABC):
             self._http_client = httpx.AsyncClient(timeout=30.0)
         return self._http_client
 
-    async def close(self):
+    async def close(self) -> None:
         if self._http_client:
             await self._http_client.aclose()
             self._http_client = None

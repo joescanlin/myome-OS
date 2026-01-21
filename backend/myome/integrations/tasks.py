@@ -1,13 +1,14 @@
 """Celery tasks for device integration and data sync"""
 
 import asyncio
+from collections.abc import Awaitable
 from datetime import UTC, datetime
 
 from myome.core.celery_app import celery_app
 from myome.core.logging import logger
 
 
-def run_async(coro):
+def run_async(coro: Awaitable[dict]) -> dict:
     """Run async code in sync context"""
     loop = asyncio.new_event_loop()
     try:

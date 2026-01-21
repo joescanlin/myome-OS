@@ -114,7 +114,7 @@ class KalmanCalibrator:
 
     def get_uncertainty(self) -> tuple[float, float]:
         """Get uncertainty (std dev) in alpha and beta estimates"""
-        return (np.sqrt(self.P[0, 0]), np.sqrt(self.P[1, 1]))
+        return (float(np.sqrt(self.P[0, 0])), float(np.sqrt(self.P[1, 1])))
 
     def reset(self, alpha: float = 1.0, beta: float = 0.0) -> None:
         """Reset calibration to initial values"""

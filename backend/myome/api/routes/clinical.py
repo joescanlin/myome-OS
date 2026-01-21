@@ -31,7 +31,7 @@ async def generate_physician_report_pdf(
     session: DbSession,
     report_date: datetime | None = Query(default=None),
     months: int = Query(default=3, ge=1, le=12),
-):
+) -> dict:
     """Generate physician report as PDF (placeholder)"""
     # In production, use reportlab or weasyprint to generate PDF
     raise HTTPException(
@@ -104,10 +104,13 @@ async def get_fhir_bundle(
         hr_df = await loader.load_heart_rate(start, end, resample="1H")
         for idx, row in hr_df.iterrows():
             if not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 resources.append(
                     fhir.create_heart_rate_observation(
                         int(row["heart_rate_bpm"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 
@@ -116,10 +119,13 @@ async def get_fhir_bundle(
         glucose_df = await loader.load_glucose(start, end, resample="1H")
         for idx, row in glucose_df.iterrows():
             if not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 resources.append(
                     fhir.create_glucose_observation(
                         float(row["glucose_mg_dl"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 
@@ -128,10 +134,13 @@ async def get_fhir_bundle(
         hrv_df = await loader.load_hrv(start, end, resample="1H")
         for idx, row in hrv_df.iterrows():
             if "sdnn_ms" in row and not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 resources.append(
                     fhir.create_hrv_observation(
                         float(row["sdnn_ms"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 
@@ -212,10 +221,13 @@ async def get_fhir_observations(
         df = await loader.load_heart_rate(start, end)
         for idx, row in df.head(limit).iterrows():
             if not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 observations.append(
                     fhir.create_heart_rate_observation(
                         int(row["heart_rate_bpm"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 
@@ -223,10 +235,13 @@ async def get_fhir_observations(
         df = await loader.load_glucose(start, end)
         for idx, row in df.head(limit).iterrows():
             if not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 observations.append(
                     fhir.create_glucose_observation(
                         float(row["glucose_mg_dl"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 
@@ -234,10 +249,13 @@ async def get_fhir_observations(
         df = await loader.load_hrv(start, end)
         for idx, row in df.head(limit).iterrows():
             if "sdnn_ms" in row and not row.isna().all():
+                timestamp = (
+                    idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
+                )
                 observations.append(
                     fhir.create_hrv_observation(
                         float(row["sdnn_ms"]),
-                        idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx,
+                        timestamp,
                     )
                 )
 

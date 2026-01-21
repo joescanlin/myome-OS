@@ -1,5 +1,7 @@
 """Sensor adapter registry and factory"""
 
+from collections.abc import Callable
+
 from myome.sensors.base import HealthSensor, MultiSensorDevice, SensorType
 
 
@@ -10,10 +12,12 @@ class SensorRegistry:
     _multi_device_adapters: dict[str, type[MultiSensorDevice]] = {}
 
     @classmethod
-    def register(cls, vendor: str, sensor_type: SensorType):
+    def register(
+        cls, vendor: str, sensor_type: SensorType
+    ) -> Callable[[type[HealthSensor]], type[HealthSensor]]:
         """Decorator to register a sensor adapter"""
 
-        def decorator(adapter_class: type[HealthSensor]):
+        def decorator(adapter_class: type[HealthSensor]) -> type[HealthSensor]:
             key = f"{vendor}:{sensor_type.value}"
             cls._adapters[key] = adapter_class
             return adapter_class
@@ -21,10 +25,14 @@ class SensorRegistry:
         return decorator
 
     @classmethod
-    def register_device(cls, vendor: str):
+    def register_device(
+        cls, vendor: str
+    ) -> Callable[[type[MultiSensorDevice]], type[MultiSensorDevice]]:
         """Decorator to register a multi-sensor device adapter"""
 
-        def decorator(adapter_class: type[MultiSensorDevice]):
+        def decorator(
+            adapter_class: type[MultiSensorDevice],
+        ) -> type[MultiSensorDevice]:
             cls._multi_device_adapters[vendor] = adapter_class
             return adapter_class
 

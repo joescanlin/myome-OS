@@ -2,6 +2,32 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any, TypedDict
+
+
+class BiomarkerConfig(TypedDict):
+    display_name: str
+    unit: str
+    standard_threshold: float
+    direction: str
+    recommendation_template: str
+
+
+class BiomarkerFamilyDatum(TypedDict):
+    value: float | None
+    age_at_measurement: int | None
+    is_abnormal: bool | None
+    relationship: str
+    relatedness: float
+    member_id: str | None
+
+
+class ConditionFamilyDatum(TypedDict):
+    onset_age: int | None
+    current: bool
+    relationship: str
+    relatedness: float
+    member_id: str | None
 
 
 @dataclass
@@ -20,7 +46,7 @@ class WatchlistItemConfig:
 
 
 # Biomarker configurations with standard thresholds
-BIOMARKER_CONFIGS = {
+BIOMARKER_CONFIGS: dict[str, BiomarkerConfig] = {
     "ldl": {
         "display_name": "LDL Cholesterol",
         "unit": "mg/dL",
@@ -148,9 +174,11 @@ class WatchlistGenerator:
 
         return watchlist
 
-    def _aggregate_family_biomarkers(self, family_members: list) -> dict:
+    def _aggregate_family_biomarkers(
+        self, family_members: list
+    ) -> dict[str, list[BiomarkerFamilyDatum]]:
         """Aggregate biomarker data across family members"""
-        aggregated = {}
+        aggregated: dict[str, list[BiomarkerFamilyDatum]] = {}
 
         for member in family_members:
             if not member.biomarkers:
@@ -173,9 +201,11 @@ class WatchlistGenerator:
 
         return aggregated
 
-    def _aggregate_family_conditions(self, family_members: list) -> dict:
+    def _aggregate_family_conditions(
+        self, family_members: list
+    ) -> dict[str, list[ConditionFamilyDatum]]:
         """Aggregate conditions across family members"""
-        aggregated = {}
+        aggregated: dict[str, list[ConditionFamilyDatum]] = {}
 
         for member in family_members:
             if not member.conditions:
@@ -204,7 +234,7 @@ class WatchlistGenerator:
     def _create_biomarker_watchlist_item(
         self,
         biomarker_name: str,
-        family_data: list[dict],
+        family_data: list[BiomarkerFamilyDatum],
     ) -> WatchlistItemConfig | None:
         """Create watchlist item for a biomarker based on family data"""
         config = BIOMARKER_CONFIGS.get(biomarker_name)
@@ -212,8 +242,8 @@ class WatchlistGenerator:
             return None
 
         # Find the most concerning family member data
-        most_relevant = None
-        highest_concern = 0
+        most_relevant: BiomarkerFamilyDatum | None = None
+        highest_concern = 0.0
 
         for data in family_data:
             if data.get("value") is None:
@@ -243,6 +273,8 @@ class WatchlistGenerator:
 
         # Calculate personalized threshold
         family_value = most_relevant["value"]
+        if family_value is None:
+            return None
         standard_threshold = config["standard_threshold"]
         direction = config["direction"]
 
@@ -284,7 +316,7 @@ class WatchlistGenerator:
     def _create_condition_watchlist_items(
         self,
         condition: str,
-        relatives: list[dict],
+        relatives: list[ConditionFamilyDatum],
     ) -> list[WatchlistItemConfig]:
         """Create watchlist items for biomarkers related to a condition"""
         items = []
@@ -314,9 +346,9 @@ class WatchlistGenerator:
         related_biomarkers = condition_biomarkers.get(condition, [])
 
         # Find earliest onset in family
-        earliest_onset = None
-        earliest_relative = None
-        closest_relative = None
+        earliest_onset: int | None = None
+        earliest_relative: ConditionFamilyDatum | None = None
+        closest_relative: ConditionFamilyDatum | None = None
         highest_relatedness = 0
 
         for rel in relatives:
@@ -355,9 +387,9 @@ class WatchlistGenerator:
             # Adjust threshold for early detection
             standard_threshold = config["standard_threshold"]
             if config["direction"] == "above":
-                adjusted_threshold = standard_threshold * 0.9  # 10% more aggressive
+                adjusted_threshold: float = float(standard_threshold) * 0.9
             else:
-                adjusted_threshold = standard_threshold * 1.1
+                adjusted_threshold = float(standard_threshold) * 1.1
 
             items.append(
                 WatchlistItemConfig(
@@ -438,7 +470,7 @@ class FamilyHistoryPDFGenerator:
 
     def _build_pedigree(self, family_members: list) -> dict:
         """Build family tree structure"""
-        pedigree = {
+        pedigree: dict[str, Any] = {
             "maternal": {
                 "grandmother": None,
                 "grandfather": None,
@@ -457,7 +489,7 @@ class FamilyHistoryPDFGenerator:
 
         for member in family_members:
             rel = member.relationship
-            summary = {
+            summary: dict[str, Any] = {
                 "conditions": member.conditions or [],
                 "is_living": member.is_living,
                 "age_at_death": member.age_at_death,
@@ -493,7 +525,7 @@ class FamilyHistoryPDFGenerator:
 
     def _summarize_conditions(self, family_members: list) -> dict:
         """Summarize conditions across family"""
-        conditions = {}
+        conditions: dict[str, list[dict[str, Any]]] = {}
 
         for member in family_members:
             if not member.conditions:

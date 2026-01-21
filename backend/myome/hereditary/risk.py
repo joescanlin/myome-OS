@@ -237,10 +237,10 @@ class FamilyRiskCalculator:
         early_onset = [
             o
             for o in outcomes
-            if o.onset_age and o.onset_age < self.early_onset_threshold
+            if o.onset_age is not None and o.onset_age < self.early_onset_threshold
         ]
         if early_onset:
-            ages = [o.onset_age for o in early_onset]
+            ages = [o.onset_age for o in early_onset if o.onset_age is not None]
             factors.append(f"Early onset in family (age {min(ages)}-{max(ages)})")
 
         # Check for first-degree relatives

@@ -98,8 +98,8 @@ class GlucoseResponsePredictor:
             logger.warning("Insufficient data for training glucose predictor")
             return {"error": "insufficient_data"}
 
-        X = []
-        y = []
+        X: list[np.ndarray] = []
+        y: list[float] = []
 
         for meal in meal_logs:
             meal_time = meal["timestamp"]
@@ -141,8 +141,8 @@ class GlucoseResponsePredictor:
         if len(X) < 10:
             return {"error": "insufficient_training_samples"}
 
-        X = np.array(X)
-        y = np.array(y)
+        X_array = np.array(X)
+        y_array = np.array(y)
 
         # Train model
         self.model = GradientBoostingRegressor(
@@ -154,21 +154,21 @@ class GlucoseResponsePredictor:
 
         # Cross-validation
         cv_scores = cross_val_score(
-            self.model, X, y, cv=5, scoring="neg_mean_squared_error"
+            self.model, X_array, y_array, cv=5, scoring="neg_mean_squared_error"
         )
         rmse = np.sqrt(-cv_scores.mean())
 
         # Final fit
-        self.model.fit(X, y)
+        self.model.fit(X_array, y_array)
         self._is_trained = True
 
         # Feature importance
         importance = dict(zip(self.feature_names, self.model.feature_importances_))
 
         return {
-            "n_samples": len(X),
+            "n_samples": len(X_array),
             "rmse": float(rmse),
-            "r2": float(self.model.score(X, y)),
+            "r2": float(self.model.score(X_array, y_array)),
             "feature_importance": importance,
         }
 

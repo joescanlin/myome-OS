@@ -23,14 +23,14 @@ class Base(DeclarativeBase):
 db_url = str(settings.database_url)
 is_sqlite = db_url.startswith("sqlite")
 
-engine_kwargs = {
+engine_kwargs: dict[str, object] = {
     "echo": settings.debug,
 }
 
 # SQLite doesn't support pool_size/max_overflow
 if not is_sqlite:
-    engine_kwargs["pool_size"] = settings.database_pool_size
-    engine_kwargs["max_overflow"] = settings.database_max_overflow
+    engine_kwargs["pool_size"] = int(settings.database_pool_size)
+    engine_kwargs["max_overflow"] = int(settings.database_max_overflow)
 
 # For SQLite, we need connect_args for async
 if is_sqlite:

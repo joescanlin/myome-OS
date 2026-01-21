@@ -1,6 +1,7 @@
 """Hereditary artifact and family health API routes"""
 
 from datetime import datetime
+from typing import cast
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
@@ -282,7 +283,7 @@ async def upload_family_document(
         member.biomarkers = existing_biomarkers
 
     if extraction.conditions:
-        existing_conditions = member.conditions or []
+        existing_conditions: list[dict[str, object]] = list(member.conditions or [])
         for c in extraction.conditions:
             # Check if condition already exists
             existing_names = [ec.get("condition") for ec in existing_conditions]
@@ -294,10 +295,10 @@ async def upload_family_document(
                         "current": c.status == "active",
                     }
                 )
-        member.conditions = existing_conditions
+        member.conditions = cast(dict[str, object] | None, existing_conditions)
 
     if extraction.medications:
-        existing_meds = member.medications or []
+        existing_meds: list[dict[str, object]] = list(member.medications or [])
         for m in extraction.medications:
             existing_names = [em.get("name") for em in existing_meds]
             if m.name not in existing_names:
@@ -307,7 +308,7 @@ async def upload_family_document(
                         "dosage": m.dosage,
                     }
                 )
-        member.medications = existing_meds
+        member.medications = cast(dict[str, object] | None, existing_meds)
 
     member.data_source = "document"
     await session.commit()

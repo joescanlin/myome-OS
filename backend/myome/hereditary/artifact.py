@@ -5,6 +5,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
 from myome.analytics.data_loader import TimeSeriesLoader
@@ -206,7 +207,7 @@ class HereditaryArtifact:
 
         return trajectories
 
-    def _compute_trajectory_stats(self, series) -> dict:
+    def _compute_trajectory_stats(self, series: Any) -> dict:
         """Compute summary statistics for a trajectory"""
         if series.empty:
             return {}
@@ -222,7 +223,7 @@ class HereditaryArtifact:
             "trend": self._compute_trend(series),
         }
 
-    def _compute_trend(self, series) -> dict:
+    def _compute_trend(self, series: Any) -> dict:
         """Compute trend analysis"""
         import numpy as np
 

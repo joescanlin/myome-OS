@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from myome.analytics.data_loader import TimeSeriesLoader
 from myome.analytics.service import AnalyticsService
@@ -117,7 +118,7 @@ class PhysicianReportGenerator:
         hr_df = await self.loader.load_heart_rate(start, end, resample="1D")
         hrv_df = await self.loader.load_hrv(start, end, resample="1D")
 
-        result = {
+        result: dict[str, object] = {
             "resting_heart_rate": None,
             "hrv_analysis": None,
             "trends": [],
@@ -151,17 +152,19 @@ class PhysicianReportGenerator:
             }
 
             # Check for HRV decline
-            if current_hrv and avg_hrv:
+            if current_hrv is not None and avg_hrv is not None:
                 pct_change = ((current_hrv - avg_hrv) / avg_hrv) * 100
                 if pct_change < -20:
-                    result["concerns"].append(
-                        {
-                            "type": "hrv_decline",
-                            "severity": "high",
-                            "description": f"HRV has declined {abs(pct_change):.1f}% from baseline",
-                            "recommendation": "Consider cardiac workup if sustained",
-                        }
-                    )
+                    concerns = result["concerns"]
+                    if isinstance(concerns, list):
+                        concerns.append(
+                            {
+                                "type": "hrv_decline",
+                                "severity": "high",
+                                "description": f"HRV has declined {abs(pct_change):.1f}% from baseline",
+                                "recommendation": "Consider cardiac workup if sustained",
+                            }
+                        )
 
         return result
 
@@ -169,7 +172,7 @@ class PhysicianReportGenerator:
         """Detailed metabolic analysis"""
         glucose_df = await self.loader.load_glucose(start, end)
 
-        result = {
+        result: dict[str, object] = {
             "glucose_metrics": None,
             "time_in_range": None,
             "concerns": [],
@@ -208,14 +211,16 @@ class PhysicianReportGenerator:
 
             # Check for concerning patterns
             if cv > 36:
-                result["concerns"].append(
-                    {
-                        "type": "high_glucose_variability",
-                        "severity": "medium",
-                        "description": f"Glucose variability (CV={cv:.1f}%) is above target <36%",
-                        "recommendation": "Consider dietary modifications to reduce glycemic variability",
-                    }
-                )
+                concerns = result["concerns"]
+                if isinstance(concerns, list):
+                    concerns.append(
+                        {
+                            "type": "high_glucose_variability",
+                            "severity": "medium",
+                            "description": f"Glucose variability (CV={cv:.1f}%) is above target <36%",
+                            "recommendation": "Consider dietary modifications to reduce glycemic variability",
+                        }
+                    )
 
         return result
 
@@ -223,7 +228,7 @@ class PhysicianReportGenerator:
         """Detailed sleep analysis"""
         sleep_df = await self.loader.load_sleep(start, end)
 
-        result = {
+        result: dict[str, object] = {
             "average_duration": None,
             "sleep_architecture": None,
             "efficiency": None,
@@ -231,7 +236,7 @@ class PhysicianReportGenerator:
         }
 
         if not sleep_df.empty:
-            avg_duration = sleep_df["total_sleep_minutes"].mean()
+            avg_duration = float(sleep_df["total_sleep_minutes"].mean())
             avg_deep = sleep_df.get("deep_sleep_minutes", 0)
             avg_rem = sleep_df.get("rem_sleep_minutes", 0)
             avg_efficiency = sleep_df.get("sleep_efficiency_pct", 0)
@@ -258,23 +263,29 @@ class PhysicianReportGenerator:
             if hasattr(avg_efficiency, "mean"):
                 avg_efficiency = avg_efficiency.mean()
 
+            avg_deep_value = float(avg_deep) if hasattr(avg_deep, "__float__") else 0.0
+            avg_rem_value = float(avg_rem) if hasattr(avg_rem, "__float__") else 0.0
+            avg_efficiency_value = (
+                float(avg_efficiency) if hasattr(avg_efficiency, "__float__") else 0.0
+            )
+
             result["sleep_architecture"] = {
-                "deep_sleep_minutes": float(avg_deep) if avg_deep else None,
-                "rem_sleep_minutes": float(avg_rem) if avg_rem else None,
+                "deep_sleep_minutes": avg_deep_value if avg_deep else None,
+                "rem_sleep_minutes": avg_rem_value if avg_rem else None,
                 "deep_pct": (
-                    float((avg_deep / avg_duration) * 100)
+                    float((avg_deep_value / avg_duration) * 100)
                     if avg_deep and avg_duration
                     else None
                 ),
                 "rem_pct": (
-                    float((avg_rem / avg_duration) * 100)
+                    float((avg_rem_value / avg_duration) * 100)
                     if avg_rem and avg_duration
                     else None
                 ),
             }
 
             result["efficiency"] = {
-                "average_pct": float(avg_efficiency) if avg_efficiency else None,
+                "average_pct": avg_efficiency_value if avg_efficiency else None,
                 "target": ">85%",
                 "status": (
                     "good"
@@ -368,7 +379,7 @@ class PhysicianReportGenerator:
             "overall_pct": 85,
         }
 
-    def _calculate_trend(self, series) -> str:
+    def _calculate_trend(self, series: Any) -> str:
         """Calculate trend direction from time series"""
         if len(series) < 7:
             return "insufficient_data"
@@ -389,7 +400,7 @@ class PhysicianReportGenerator:
             return "stable"
         return "increasing" if slope > 0 else "decreasing"
 
-    def _interpret_hrv(self, current: float, average: float) -> str:
+    def _interpret_hrv(self, current: float | None, average: float | None) -> str:
         """Interpret HRV values"""
         if current is None:
             return "Insufficient data for HRV interpretation"

@@ -30,7 +30,7 @@ class WhoopSyncService:
             )
         return self._client
 
-    async def close(self):
+    async def close(self) -> None:
         if self._client:
             await self._client.aclose()
             self._client = None
@@ -38,6 +38,8 @@ class WhoopSyncService:
     async def ensure_valid_token(self) -> OAuthTokens:
         """Refresh token if expired"""
         if self.tokens.is_expired():
+            if self.tokens.refresh_token is None:
+                raise ValueError("Whoop refresh token missing")
             oauth = WhoopOAuth(
                 client_id=settings.whoop_client_id,
                 client_secret=settings.whoop_client_secret,
@@ -54,14 +56,14 @@ class WhoopSyncService:
                 await oauth.close()
         return self.tokens
 
-    async def get_user_profile(self) -> dict:
+    async def get_user_profile(self) -> dict[str, object]:
         """Get basic user profile"""
         await self.ensure_valid_token()
         response = await self.client.get("/v2/user/profile/basic")
         response.raise_for_status()
         return response.json()
 
-    async def get_body_measurements(self) -> dict:
+    async def get_body_measurements(self) -> dict[str, object]:
         """Get body measurements (height, weight, max HR)"""
         await self.ensure_valid_token()
         response = await self.client.get("/v2/user/measurement/body")
@@ -73,17 +75,17 @@ class WhoopSyncService:
         start: datetime | None = None,
         end: datetime | None = None,
         limit: int = 25,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Get sleep sessions"""
         await self.ensure_valid_token()
 
-        params = {"limit": min(limit, 25)}
+        params: dict[str, str | int] = {"limit": min(limit, 25)}
         if start:
             params["start"] = start.isoformat()
         if end:
             params["end"] = end.isoformat()
 
-        all_records = []
+        all_records: list[dict[str, object]] = []
         next_token = None
 
         while True:
@@ -93,8 +95,8 @@ class WhoopSyncService:
             response = await self.client.get("/v2/activity/sleep", params=params)
             response.raise_for_status()
             data = response.json()
-
-            all_records.extend(data.get("records", []))
+            records = data.get("records")
+            all_records.extend(list(records) if isinstance(records, list) else [])
             next_token = data.get("next_token")
 
             if not next_token or len(all_records) >= limit:
@@ -107,17 +109,17 @@ class WhoopSyncService:
         start: datetime | None = None,
         end: datetime | None = None,
         limit: int = 25,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Get recovery data (HRV, resting HR, etc)"""
         await self.ensure_valid_token()
 
-        params = {"limit": min(limit, 25)}
+        params: dict[str, str | int] = {"limit": min(limit, 25)}
         if start:
             params["start"] = start.isoformat()
         if end:
             params["end"] = end.isoformat()
 
-        all_records = []
+        all_records: list[dict[str, object]] = []
         next_token = None
 
         while True:
@@ -127,8 +129,8 @@ class WhoopSyncService:
             response = await self.client.get("/v2/recovery", params=params)
             response.raise_for_status()
             data = response.json()
-
-            all_records.extend(data.get("records", []))
+            records = data.get("records")
+            all_records.extend(list(records) if isinstance(records, list) else [])
             next_token = data.get("next_token")
 
             if not next_token or len(all_records) >= limit:
@@ -141,17 +143,17 @@ class WhoopSyncService:
         start: datetime | None = None,
         end: datetime | None = None,
         limit: int = 25,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Get workout data"""
         await self.ensure_valid_token()
 
-        params = {"limit": min(limit, 25)}
+        params: dict[str, str | int] = {"limit": min(limit, 25)}
         if start:
             params["start"] = start.isoformat()
         if end:
             params["end"] = end.isoformat()
 
-        all_records = []
+        all_records: list[dict[str, object]] = []
         next_token = None
 
         while True:
@@ -161,8 +163,8 @@ class WhoopSyncService:
             response = await self.client.get("/v2/activity/workout", params=params)
             response.raise_for_status()
             data = response.json()
-
-            all_records.extend(data.get("records", []))
+            records = data.get("records")
+            all_records.extend(list(records) if isinstance(records, list) else [])
             next_token = data.get("next_token")
 
             if not next_token or len(all_records) >= limit:
@@ -175,17 +177,17 @@ class WhoopSyncService:
         start: datetime | None = None,
         end: datetime | None = None,
         limit: int = 25,
-    ) -> list[dict]:
+    ) -> list[dict[str, object]]:
         """Get daily cycle data (strain)"""
         await self.ensure_valid_token()
 
-        params = {"limit": min(limit, 25)}
+        params: dict[str, str | int] = {"limit": min(limit, 25)}
         if start:
             params["start"] = start.isoformat()
         if end:
             params["end"] = end.isoformat()
 
-        all_records = []
+        all_records: list[dict[str, object]] = []
         next_token = None
 
         while True:
@@ -195,8 +197,8 @@ class WhoopSyncService:
             response = await self.client.get("/v2/cycle", params=params)
             response.raise_for_status()
             data = response.json()
-
-            all_records.extend(data.get("records", []))
+            records = data.get("records")
+            all_records.extend(list(records) if isinstance(records, list) else [])
             next_token = data.get("next_token")
 
             if not next_token or len(all_records) >= limit:
@@ -224,7 +226,7 @@ class WhoopSyncService:
         end = datetime.now(UTC)
         start = end - timedelta(days=days_back)
 
-        counts = {
+        counts: dict[str, int] = {
             "sleep": 0,
             "recovery": 0,
             "workout": 0,
@@ -238,39 +240,51 @@ class WhoopSyncService:
                     if record.get("score_state") != "SCORED":
                         continue
 
-                    score = record.get("score", {})
-                    stage = score.get("stage_summary", {})
+                    score = record.get("score")
+                    score_dict = score if isinstance(score, dict) else {}
+                    stage = score_dict.get("stage_summary")
+                    stage_dict = stage if isinstance(stage, dict) else {}
+
+                    start_str = str(record.get("start", ""))
+                    end_str = str(record.get("end", ""))
+                    if not start_str or not end_str:
+                        continue
 
                     sleep = SleepSession(
                         user_id=user_id,
                         device_id=device_id,
                         start_time=datetime.fromisoformat(
-                            record["start"].replace("Z", "+00:00")
+                            start_str.replace("Z", "+00:00")
                         ),
-                        end_time=datetime.fromisoformat(
-                            record["end"].replace("Z", "+00:00")
-                        ),
+                        end_time=datetime.fromisoformat(end_str.replace("Z", "+00:00")),
                         total_sleep_minutes=int(
-                            stage.get("total_in_bed_time_milli", 0) / 60000
+                            float(stage_dict.get("total_in_bed_time_milli", 0)) / 60000
                         ),
                         time_in_bed_minutes=int(
-                            stage.get("total_in_bed_time_milli", 0) / 60000
+                            float(stage_dict.get("total_in_bed_time_milli", 0)) / 60000
                         ),
                         deep_sleep_minutes=int(
-                            stage.get("total_slow_wave_sleep_time_milli", 0) / 60000
+                            float(stage_dict.get("total_slow_wave_sleep_time_milli", 0))
+                            / 60000
                         ),
                         rem_sleep_minutes=int(
-                            stage.get("total_rem_sleep_time_milli", 0) / 60000
+                            float(stage_dict.get("total_rem_sleep_time_milli", 0))
+                            / 60000
                         ),
                         light_sleep_minutes=int(
-                            stage.get("total_light_sleep_time_milli", 0) / 60000
+                            float(stage_dict.get("total_light_sleep_time_milli", 0))
+                            / 60000
                         ),
                         awake_minutes=int(
-                            stage.get("total_awake_time_milli", 0) / 60000
+                            float(stage_dict.get("total_awake_time_milli", 0)) / 60000
                         ),
-                        sleep_efficiency_pct=score.get("sleep_efficiency_percentage"),
-                        sleep_score=int(score.get("sleep_performance_percentage", 0)),
-                        avg_respiratory_rate=score.get("respiratory_rate"),
+                        sleep_efficiency_pct=score_dict.get(
+                            "sleep_efficiency_percentage"
+                        ),
+                        sleep_score=int(
+                            float(score_dict.get("sleep_performance_percentage", 0))
+                        ),
+                        avg_respiratory_rate=score_dict.get("respiratory_rate"),
                     )
                     session.add(sleep)
                     counts["sleep"] += 1
@@ -290,28 +304,34 @@ class WhoopSyncService:
                     if record.get("score_state") != "SCORED":
                         continue
 
-                    score = record.get("score", {})
+                    score = record.get("score")
+                    score_dict = score if isinstance(score, dict) else {}
+                    created_at = str(record.get("created_at", ""))
+                    if not created_at:
+                        continue
                     timestamp = datetime.fromisoformat(
-                        record["created_at"].replace("Z", "+00:00")
+                        created_at.replace("Z", "+00:00")
                     )
 
                     # HRV reading
-                    if score.get("hrv_rmssd_milli"):
+                    if score_dict.get("hrv_rmssd_milli"):
                         hrv = HRVReading(
                             user_id=user_id,
                             device_id=device_id,
                             timestamp=timestamp,
-                            rmssd_ms=score["hrv_rmssd_milli"],
+                            rmssd_ms=float(score_dict.get("hrv_rmssd_milli", 0)),
                         )
                         session.add(hrv)
 
                     # Resting heart rate
-                    if score.get("resting_heart_rate"):
+                    if score_dict.get("resting_heart_rate"):
                         hr = HeartRateReading(
                             user_id=user_id,
                             device_id=device_id,
                             timestamp=timestamp,
-                            heart_rate_bpm=score["resting_heart_rate"],
+                            heart_rate_bpm=int(
+                                float(score_dict.get("resting_heart_rate", 0))
+                            ),
                             activity_type="resting",
                         )
                         session.add(hr)
@@ -333,18 +353,24 @@ class WhoopSyncService:
                     if record.get("score_state") != "SCORED":
                         continue
 
-                    score = record.get("score", {})
+                    score = record.get("score")
+                    score_dict = score if isinstance(score, dict) else {}
+                    start_time = str(record.get("start", ""))
+                    if not start_time:
+                        continue
                     timestamp = datetime.fromisoformat(
-                        record["start"].replace("Z", "+00:00")
+                        start_time.replace("Z", "+00:00")
                     )
 
                     # Average HR during workout
-                    if score.get("average_heart_rate"):
+                    if score_dict.get("average_heart_rate"):
                         hr = HeartRateReading(
                             user_id=user_id,
                             device_id=device_id,
                             timestamp=timestamp,
-                            heart_rate_bpm=score["average_heart_rate"],
+                            heart_rate_bpm=int(
+                                float(score_dict.get("average_heart_rate", 0))
+                            ),
                             activity_type=record.get("sport_name", "workout"),
                         )
                         session.add(hr)

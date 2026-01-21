@@ -145,12 +145,17 @@ class AnomalyDetector:
         for timestamp, value in data.items():
             if pd.isna(value):
                 continue
+            ts = (
+                timestamp.to_pydatetime()
+                if hasattr(timestamp, "to_pydatetime")
+                else timestamp
+            )
 
             # Check critical thresholds
             if "critical_low" in thresholds and value < thresholds["critical_low"]:
                 anomalies.append(
                     Anomaly(
-                        timestamp=timestamp,
+                        timestamp=ts,
                         biomarker=biomarker_name,
                         anomaly_type=AnomalyType.POINT,
                         priority=AlertPriority.CRITICAL,
@@ -168,7 +173,7 @@ class AnomalyDetector:
             elif "critical_high" in thresholds and value > thresholds["critical_high"]:
                 anomalies.append(
                     Anomaly(
-                        timestamp=timestamp,
+                        timestamp=ts,
                         biomarker=biomarker_name,
                         anomaly_type=AnomalyType.POINT,
                         priority=AlertPriority.CRITICAL,
@@ -187,7 +192,7 @@ class AnomalyDetector:
             elif "low" in thresholds and value < thresholds["low"]:
                 anomalies.append(
                     Anomaly(
-                        timestamp=timestamp,
+                        timestamp=ts,
                         biomarker=biomarker_name,
                         anomaly_type=AnomalyType.POINT,
                         priority=AlertPriority.HIGH,
@@ -204,7 +209,7 @@ class AnomalyDetector:
             elif "high" in thresholds and value > thresholds["high"]:
                 anomalies.append(
                     Anomaly(
-                        timestamp=timestamp,
+                        timestamp=ts,
                         biomarker=biomarker_name,
                         anomaly_type=AnomalyType.POINT,
                         priority=AlertPriority.HIGH,
@@ -240,6 +245,11 @@ class AnomalyDetector:
         for timestamp, value in data.items():
             if pd.isna(value):
                 continue
+            ts = (
+                timestamp.to_pydatetime()
+                if hasattr(timestamp, "to_pydatetime")
+                else timestamp
+            )
 
             mean = rolling_mean.get(timestamp)
             std = rolling_std.get(timestamp)
@@ -252,7 +262,7 @@ class AnomalyDetector:
             if z_score > self.z_threshold:
                 anomalies.append(
                     Anomaly(
-                        timestamp=timestamp,
+                        timestamp=ts,
                         biomarker=biomarker_name,
                         anomaly_type=AnomalyType.POINT,
                         priority=AlertPriority.MEDIUM,
@@ -281,8 +291,8 @@ class AnomalyDetector:
 
         # Compare recent window to baseline
         baseline = values[: self.window_size]
-        baseline_mean = np.mean(baseline)
-        baseline_std = np.std(baseline)
+        baseline_mean = np.mean(np.asarray(baseline, dtype=float))
+        baseline_std = np.std(np.asarray(baseline, dtype=float))
 
         if baseline_mean == 0 or baseline_std == 0:
             return []
@@ -292,21 +302,28 @@ class AnomalyDetector:
             self.window_size, len(values) - self.window_size, self.window_size // 2
         ):
             recent = values[i : i + self.window_size]
-            recent_mean = np.mean(recent)
+            recent_mean = np.mean(np.asarray(recent, dtype=float))
 
             # Calculate percent change from baseline
             percent_change = ((recent_mean - baseline_mean) / abs(baseline_mean)) * 100
 
             if abs(percent_change) > min_shift_percent:
                 # Verify with t-test
-                t_stat, p_value = stats.ttest_ind(baseline, recent)
+                t_stat, p_value = stats.ttest_ind(
+                    np.asarray(baseline, dtype=float),
+                    np.asarray(recent, dtype=float),
+                )
 
                 if p_value < 0.01:  # Significant shift
                     direction = "increased" if percent_change > 0 else "decreased"
 
                     anomalies.append(
                         Anomaly(
-                            timestamp=timestamps[i],
+                            timestamp=(
+                                timestamps[i].to_pydatetime()
+                                if hasattr(timestamps[i], "to_pydatetime")
+                                else timestamps[i]
+                            ),
                             biomarker=biomarker_name,
                             anomaly_type=AnomalyType.LEVEL_SHIFT,
                             priority=AlertPriority.HIGH,
@@ -315,7 +332,7 @@ class AnomalyDetector:
                                 float(baseline_mean - 2 * baseline_std),
                                 float(baseline_mean + 2 * baseline_std),
                             ),
-                            deviation_score=abs(percent_change),
+                            deviation_score=float(abs(percent_change)),
                             description=f"{biomarker_name} has {direction} by {abs(percent_change):.1f}% from baseline",
                             clinical_context=f"Baseline mean: {baseline_mean:.1f}, Current: {recent_mean:.1f}",
                         )

@@ -84,7 +84,9 @@ class TrendAnalyzer:
         y = data.values
 
         # Linear regression
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+        )
 
         # Calculate percent change
         start_value = intercept
@@ -136,22 +138,24 @@ class TrendAnalyzer:
         timestamps = data.index
 
         # Calculate global statistics for threshold
-        global_std = np.std(values)
+        global_std = np.std(np.asarray(values, dtype=float))
 
         # Sliding window comparison
         for i in range(min_segment_size, len(values) - min_segment_size):
             before = values[i - min_segment_size : i]
             after = values[i : i + min_segment_size]
 
-            before_mean = np.mean(before)
-            after_mean = np.mean(after)
+            before_mean = np.mean(np.asarray(before, dtype=float))
+            after_mean = np.mean(np.asarray(after, dtype=float))
 
             change = after_mean - before_mean
 
             # Check if change exceeds threshold
             if abs(change) > threshold_std * global_std:
                 # Compute confidence based on t-test
-                t_stat, p_value = stats.ttest_ind(before, after)
+                t_stat, p_value = stats.ttest_ind(
+                    np.asarray(before, dtype=float), np.asarray(after, dtype=float)
+                )
                 confidence = 1 - p_value
 
                 if confidence > 0.95:  # 95% confidence

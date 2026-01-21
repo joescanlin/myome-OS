@@ -1,5 +1,6 @@
 """FastAPI application entry point"""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -22,7 +23,7 @@ from myome.core.logging import logger
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler"""
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
@@ -69,7 +70,9 @@ else:
 
 # Exception handlers
 @app.exception_handler(MyomeException)
-async def myome_exception_handler(request: Request, exc: MyomeException):
+async def myome_exception_handler(
+    request: Request, exc: MyomeException
+) -> JSONResponse:
     return JSONResponse(
         status_code=400,
         content={
@@ -91,7 +94,7 @@ app.include_router(hereditary.router, prefix=settings.api_prefix)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict:
     """Root endpoint"""
     return {
         "name": settings.app_name,
@@ -102,7 +105,7 @@ async def root():
 
 
 @app.get("/api/v1/health")
-async def health_check():
+async def health_check() -> dict:
     """Health check endpoint"""
     return {
         "status": "healthy",

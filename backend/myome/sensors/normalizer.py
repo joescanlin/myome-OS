@@ -1,5 +1,6 @@
 """Data normalization for cross-device consistency"""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -16,7 +17,7 @@ class NormalizationRule:
     target_unit: str
 
     # Conversion functions for common units
-    conversions: dict[str, callable]
+    conversions: dict[str, Callable[[float], float]]
 
     # Valid range for physiological plausibility
     min_value: float | None = None

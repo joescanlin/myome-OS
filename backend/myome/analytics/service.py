@@ -61,7 +61,7 @@ class AnalyticsService:
         week_start = day_start - timedelta(days=7)
         month_start = day_start - timedelta(days=30)
 
-        results = {
+        results: dict[str, object] = {
             "date": analysis_date.date().isoformat(),
             "alerts": [],
             "trends": [],
@@ -145,7 +145,7 @@ class AnalyticsService:
         end: datetime,
     ) -> list[TrendResult]:
         """Analyze trends for all biomarkers"""
-        trends = []
+        trends: list[TrendResult] = []
 
         # Load multi-biomarker data
         df = await self.loader.load_multi_biomarker(
@@ -191,7 +191,7 @@ class AnalyticsService:
         end: datetime,
     ) -> dict:
         """Compute summary statistics for the day"""
-        summary = {}
+        summary: dict[str, object] = {}
 
         # Heart rate
         hr_df = await self.loader.load_heart_rate(start, end)
@@ -252,8 +252,8 @@ class AnalyticsService:
 
         start = date - timedelta(days=7)
 
-        scores = {}
-        weights = {}
+        scores: dict[str, float] = {}
+        weights: dict[str, float] = {}
 
         # HRV score (autonomic health)
         hrv_df = await self.loader.load_hrv(start, date)
@@ -261,26 +261,26 @@ class AnalyticsService:
             rmssd = hrv_df["rmssd_ms"].mean()
             # Score based on typical ranges (higher is better)
             if rmssd >= 50:
-                scores["hrv"] = 100
+                scores["hrv"] = 100.0
             elif rmssd >= 30:
-                scores["hrv"] = 70 + (rmssd - 30) * 1.5
+                scores["hrv"] = 70.0 + (rmssd - 30) * 1.5
             else:
-                scores["hrv"] = max(0, rmssd * 2.3)
+                scores["hrv"] = max(0.0, rmssd * 2.3)
             weights["hrv"] = 0.25
 
         # Sleep score
         sleep_df = await self.loader.load_sleep(start, date)
         if not sleep_df.empty:
-            avg_duration = sleep_df["total_sleep_minutes"].mean()
-            avg_efficiency = sleep_df["sleep_efficiency_pct"].mean()
+            avg_duration = float(sleep_df["total_sleep_minutes"].mean())
+            avg_efficiency = float(sleep_df["sleep_efficiency_pct"].mean())
 
             # Duration score (target 7-9 hours = 420-540 minutes)
             if 420 <= avg_duration <= 540:
-                duration_score = 100
+                duration_score = 100.0
             elif avg_duration < 420:
-                duration_score = max(0, avg_duration / 420 * 100)
+                duration_score = max(0.0, avg_duration / 420 * 100)
             else:
-                duration_score = max(0, 100 - (avg_duration - 540) / 2)
+                duration_score = max(0.0, 100 - (avg_duration - 540) / 2)
 
             scores["sleep"] = (duration_score + avg_efficiency) / 2
             weights["sleep"] = 0.25

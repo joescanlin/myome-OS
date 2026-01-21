@@ -51,7 +51,7 @@ class ManualEntrySensor(HealthSensor):
     async def is_connected(self) -> bool:
         return True
 
-    async def stream_data(self) -> AsyncIterator[Measurement]:
+    def stream_data(self) -> AsyncIterator[Measurement]:
         """Manual entry doesn't support streaming"""
         raise NotImplementedError("Manual entry doesn't support streaming")
 

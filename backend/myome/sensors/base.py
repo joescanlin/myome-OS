@@ -122,9 +122,9 @@ class HealthSensor(ABC):
         pass
 
     @abstractmethod
-    async def stream_data(self) -> AsyncIterator[Measurement]:
+    def stream_data(self) -> AsyncIterator[Measurement]:
         """Stream real-time measurements"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def get_historical(

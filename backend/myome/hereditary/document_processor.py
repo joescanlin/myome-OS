@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TypedDict
 
 
 @dataclass
@@ -52,8 +53,14 @@ class DocumentExtractionResult:
     extraction_notes: list[str] = field(default_factory=list)
 
 
+class BiomarkerPattern(TypedDict):
+    patterns: list[str]
+    unit: str
+    normal_range: tuple[float, float]
+
+
 # Common biomarker patterns for regex extraction
-BIOMARKER_PATTERNS = {
+BIOMARKER_PATTERNS: dict[str, BiomarkerPattern] = {
     "ldl": {
         "patterns": [
             r"LDL[:\s-]*(\d+(?:\.\d+)?)\s*(mg/dL|mmol/L)?",
@@ -216,9 +223,9 @@ class FamilyDocumentProcessor:
     lab reports, discharge summaries, and other medical documents.
     """
 
-    def __init__(self):
-        self.biomarker_patterns = BIOMARKER_PATTERNS
-        self.condition_patterns = CONDITION_PATTERNS
+    def __init__(self) -> None:
+        self.biomarker_patterns: dict[str, BiomarkerPattern] = BIOMARKER_PATTERNS
+        self.condition_patterns: dict[str, list[str]] = CONDITION_PATTERNS
 
     async def process_document(
         self,
@@ -329,7 +336,8 @@ class FamilyDocumentProcessor:
         biomarkers = []
 
         for name, config in self.biomarker_patterns.items():
-            for pattern in config["patterns"]:
+            patterns = config["patterns"]
+            for pattern in patterns:
                 match = re.search(pattern, text, re.IGNORECASE)
                 if match:
                     try:
